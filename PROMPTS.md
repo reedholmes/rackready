@@ -75,6 +75,10 @@ Keep them
 next
 ```
 
+Answer given in a multiple-choice dialog during this step:
+
+- Git identity for commits: "Name + private placeholder (Recommended)"
+
 ---
 
 ## Prompt 5 (2026-11-11 17:55 ET)
@@ -186,3 +190,9 @@ Start step 5
 ```
 Start step 6
 ```
+
+Answers given in multiple-choice dialogs during this step:
+
+- MCP panel before deploying: "Remove MCP, then deploy (Recommended)"
+- Cost of public deployment: "Yes, deploy"
+- How picking an option should work: "Offer the save on a pick (Recommended)"

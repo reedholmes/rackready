@@ -1,6 +1,132 @@
 # RackReady
 
-> The full RackReady README is written in the final build step. Until then, the original agents-starter README follows the Model Notes below.
+**Live demo:** https://rackready.reedholmes9.workers.dev
+
+RackReady is a chat agent for a supply chain program manager who owns data center rack integration. Ask it plain-English questions such as "Which rack builds are at risk in the next six weeks?" and it checks material readiness against the build plan, explains shortages, proposes allocation options, and keeps a log of the decisions you approve. Once a week it runs a shortage review on its own and leads the chat with the result.
+
+It was built as a demo for a job application at Cloudflare (Supply Chain Program Manager, Rack Integration). **All data is mock data.**
+
+## Try it
+
+Open the live demo and click the suggested questions in order. Wait for each answer to finish before sending the next one.
+
+1. Which rack builds are at risk in the next six weeks?
+2. What is short for the week 3 builds, and when does it recover?
+3. What are my options for the switch shortage?
+4. Log the decision to serve priority 1 builds first. (an **Approve / Reject** card appears; nothing is saved until you click Approve)
+5. What did we decide last time? (refresh the page first; the answer comes from the decisions log)
+
+You can also click **Run review now** in the header to run the weekly shortage review on demand.
+
+The demo has a single shared agent, so every visitor sees the same chat history and decisions log. Click **Clear** to start a fresh conversation (the decisions log is kept).
+
+## How the four required components are met
+
+| Requirement | How RackReady meets it |
+|---|---|
+| **LLM** | Llama 3.3 70B on Workers AI (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`), called through the Workers AI binding. The model decides which tool to call and explains the result. It never does arithmetic: every quantity, total, and recovery week is computed in TypeScript and returned by a tool. Llama 3.3 needed several guardrails to call tools reliably; see [Model Notes](#model-notes). |
+| **Workflow / coordination** | The agent is an Agents SDK `AIChatAgent`, which runs as a Durable Object. Its built-in scheduler runs the shortage review every Monday at 13:00 UTC (`this.schedule("0 13 * * 1", "weeklyReview")`). The **Run review now** button calls the same method through a `@callable()` RPC. |
+| **User input via chat** | The agents-starter chat UI, kept as is apart from the RackReady suggestion buttons and the Run review now button. Human-in-the-loop approval for logging decisions uses the AI SDK's `needsApproval` and the starter's Approve / Reject cards. |
+| **Memory / state** | Everything lives in the Durable Object's SQLite storage: chat history (persisted automatically by `AIChatAgent`), the mock planning tables, the decisions log, and a table of review runs. Chat history and decisions survive page refreshes. |
+
+## How it works
+
+```
+Browser (React chat UI)  <-- WebSocket -->  ChatAgent (Durable Object on Cloudflare)
+                                              |-- Llama 3.3 on Workers AI (picks tools, writes replies)
+                                              |-- Tools (plain TypeScript, all the math)
+                                              |-- SQLite: builds, bom, inventory, inbound,
+                                              |           decisions, reviews, chat history
+                                              '-- Scheduler: weekly review, Mondays 13:00 UTC
+```
+
+**Tools the model can call**
+
+| Tool | What it does |
+|---|---|
+| `getBuildPlan(weeks)` | Planned builds for the horizon, with totals computed in code. |
+| `checkMaterialReadiness(weeks)` | Walks the plan week by week: inbound orders land at the start of their week, builds compete for stock by priority, ready builds consume it, short builds wait and are retried until supply recovers. Returns each build as ready or short with the component, quantity short, and recovery week, plus a summary sentence written in code. |
+| `proposeAllocation(component, site)` | Builds two or three options as "what if" scenarios (serve by priority, transfer spare stock from the other site, expedite the late purchase order), reruns the readiness calculation for each, and returns the effect on every affected build and the tradeoff. |
+| `logDecision(summary)` | Saves a decision to the log after the user clicks **Approve**. |
+| `listDecisions()` | Returns past decisions, newest first. |
+
+**Weekly review.** `weeklyReview` runs `checkMaterialReadiness` for 6 weeks, stores the result, and posts the code-written summary into the chat history without calling the model, so the next time the chat is opened it leads with the review.
+
+**Main files**
+
+| File | Purpose |
+|---|---|
+| `src/server.ts` | The agent: system prompt, tools, guardrails, weekly review, run-now action. |
+| `src/data.ts` | The mock data and the story it is seeded to tell. |
+| `src/db.ts` | Table setup, one-time seeding, and SQL helpers. |
+| `src/readiness.ts` | The readiness calculation (no database or AI, so it can be tested on its own). |
+| `src/allocation.ts` | The allocation options. |
+| `src/dedupe-stream.ts`, `src/hide-invalid-tool-calls.ts` | Workarounds described in Model Notes. |
+| `src/app.tsx` | The chat UI from the starter, with small RackReady changes. |
+| `src/*.test.ts` | 17 automated tests. |
+
+## What is mock
+
+Everything in the planning data is invented:
+
+- **12 rack builds** over 8 weeks at two integrator sites (Texas and Malaysia), compute and network racks, priorities 1 to 3.
+- **Bill of materials:** a compute rack needs 20 servers, 2 top-of-rack switches, 2 power units, and 1 cable kit; a network rack needs 4 spine switches, 2 power units, and 1 cable kit.
+- **On-hand inventory** at each site and **5 inbound purchase orders** from fictional suppliers (Orbis Systems, Vela Networks).
+- **Week numbers are relative:** week 1 is "this week".
+- **Allocation assumptions:** a transfer between sites takes 1 week.
+
+The data is seeded so the story is visible: servers are fine; top-of-rack switches run short at Texas in week 3 (build B-06 is short 4); a late shipment of 8 lands in week 5 and covers the gap; Malaysia has 6 spare switches, which makes a transfer possible. `src/readiness.test.ts` proves this story.
+
+There is no real ERP, no authentication, and no multi-user separation.
+
+## Run it locally
+
+You need Node.js and a Cloudflare account (Workers AI has no local simulator, so local development calls Cloudflare).
+
+```bash
+npm install
+npx wrangler login
+npm run dev
+```
+
+Then open http://localhost:5173.
+
+```bash
+npm test
+```
+
+runs the 17 automated tests (readiness, allocation options, and the invalid tool call filter).
+
+```bash
+npm run deploy
+```
+
+builds and deploys to your own Cloudflare account.
+
+Note: in local development the weekly cron schedule followed the computer's time zone; on Cloudflare it runs in UTC (confirmed in the production logs: next run Monday 13:00 UTC).
+
+## Built with AI assistance
+
+This project was built with AI assistance, and the full prompt history is in [PROMPTS.md](PROMPTS.md).
+
+- **Claude** helped draft the build brief (`BUILD_BRIEF.md`) and the kickoff prompt (`CLAUDE_CODE_KICKOFF_PROMPT.md`).
+- **Claude Code** wrote the code, tests, and this README, working one step at a time from the brief, reading the current Cloudflare Agents and Workers AI docs and the installed packages, and testing each step in a browser.
+- **I** set the requirements, reviewed every step in the browser before moving on, and made the design calls: adding guardrails rather than switching models, hiding invalid tool calls, gating the save tool, replacing the starter's suggestion buttons, and removing the starter's MCP feature before deploying.
+
+Starting point: Cloudflare's [agents-starter](https://github.com/cloudflare/agents-starter) template (`npx create-cloudflare@latest --template cloudflare/agents-starter`).
+
+## Changes from the starter
+
+- Model switched from the starter's default to Llama 3.3; system prompt and example tools replaced.
+- Suggestion buttons replaced with the five RackReady questions; **Run review now** button added.
+- **MCP removed.** The starter lets users connect outside MCP tool servers. Because every visitor shares one agent, any visitor could have added tools for the model to call, so the feature was removed before deploying.
+
+## Known limits
+
+- One shared agent for all visitors (by design for the demo; multiple users are out of scope).
+- The header still says "Agent Starter", and the starter's image attachment button remains; Llama 3.3 cannot read images.
+- Llama 3.3 can take 20 to 30 seconds to answer, and the chat ignores input while a reply is streaming.
+- See the limits at the end of Model Notes.
 
 ## Model Notes
 
@@ -51,250 +177,6 @@ RackReady runs on Llama 3.3 70B on Workers AI (`@cf/meta/llama-3.3-70b-instruct-
 
 **Known limits:** the once-per-tool rule means one question cannot call the same tool twice (for example, readiness for 3 weeks and then for 6). In early testing with a placeholder tool, Llama also called a tool on a simple greeting. The prompt rule reduced this but did not eliminate it.
 
----
-
-# Agent Starter (original template README)
-
-![npm i agents command](./npm-agents-banner.svg)
-
-<a href="https://deploy.workers.cloudflare.com/?url=https://github.com/cloudflare/agents-starter"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare"/></a>
-
-A starter template for building AI chat agents on Cloudflare, powered by the [Agents SDK](https://developers.cloudflare.com/agents/).
-
-Uses Workers AI (no API key required), with tools for weather, timezone detection, calculations with approval, task scheduling, and vision (image input).
-
-## Quick start
-
-```bash
-npx create-cloudflare@latest --template cloudflare/agents-starter
-cd agents-starter
-npm install
-npm run dev
-```
-
-> **Cloudflare authentication is required to run locally.** This template uses
-> Workers AI with `"ai": { "remote": true }` in `wrangler.jsonc`, and Workers AI
-> has no local simulator â€” so `npm run dev` opens a remote proxy session against
-> Cloudflare and needs you to be authenticated. Either run `wrangler login` once
-> in an interactive terminal, or set a `CLOUDFLARE_API_TOKEN` environment
-> variable (e.g. in a `.env` file). No third-party (OpenAI/Anthropic) key is
-> needed, but a Cloudflare login is.
-
-Open [http://localhost:5173](http://localhost:5173) to see your agent in action.
-
-Try these prompts to see the different features:
-
-- **"What's the weather in Paris?"** â€” server-side tool (runs automatically)
-- **"What timezone am I in?"** â€” client-side tool (browser provides the answer)
-- **"Calculate 5000 \* 3"** â€” approval tool (asks you before running)
-- **"Remind me in 5 minutes to take a break"** â€” scheduling
-- **Drop an image and ask "What's in this image?"** â€” vision (image understanding)
-
-## Project structure
-
-```
-src/
-  server.ts    # Chat agent with tools and scheduling
-  app.tsx      # Chat UI built with Kumo components
-  client.tsx   # React entry point
-  styles.css   # Tailwind + Kumo styles
-```
-
-## What's included
-
-- **AI Chat** â€” Streaming responses powered by Workers AI via `AIChatAgent`
-- **Image input** â€” Drag-and-drop, paste, or click to attach images for vision-capable models
-- **Three tool patterns** â€” server-side auto-execute, client-side (browser), and human-in-the-loop approval
-- **Scheduling** â€” one-time, delayed, and recurring (cron) tasks
-- **Reasoning display** â€” shows model thinking as it streams, collapses when done
-- **Debug mode** â€” toggle in the header to inspect raw message JSON for each message
-- **Kumo UI** â€” Cloudflare's design system with dark/light mode
-- **Real-time** â€” WebSocket connection with automatic reconnection and message persistence
-
-## Making it your own
-
-### Name your project
-
-Update the name in `package.json` and `wrangler.jsonc` â€” the `name` in `wrangler.jsonc` becomes your deployed Worker's URL (`<name>.<subdomain>.workers.dev`).
-
-### Change the system prompt
-
-Edit the `system` string in `server.ts` to give your agent a different personality or focus area. This is the most impactful single change you can make.
-
-### Replace the demo tools with real ones
-
-The starter ships with demo tools (`getWeather` returns random data, `calculate` does basic arithmetic). Replace them with real implementations:
-
-```ts
-// In server.ts, replace a demo tool with a real API call:
-getWeather: tool({
-  description: "Get the current weather for a city",
-  inputSchema: z.object({ city: z.string() }),
-  execute: async ({ city }) => {
-    const res = await fetch(`https://api.weather.example/${city}`);
-    return res.json();
-  }
-}),
-```
-
-### Add your own tools
-
-Add new tools to the `tools` object in `server.ts`. There are three patterns:
-
-```ts
-// Auto-execute: runs on the server, no user interaction
-myTool: tool({
-  description: "...",
-  inputSchema: z.object({ /* ... */ }),
-  execute: async (input) => { /* return result */ }
-}),
-
-// Client-side: no execute function, browser provides the result
-// Handle it in app.tsx via the onToolCall callback
-browserTool: tool({
-  description: "...",
-  inputSchema: z.object({ /* ... */ })
-}),
-
-// Approval: add needsApproval to gate execution
-sensitiveTool: tool({
-  description: "...",
-  inputSchema: z.object({ /* ... */ }),
-  needsApproval: async (input) => true, // or conditional logic
-  execute: async (input) => { /* runs after approval */ }
-}),
-```
-
-### Customize scheduled task behavior
-
-When a scheduled task fires, `executeTask` runs on the server. It does its work and then uses `this.broadcast()` to notify connected clients (shown as a toast notification in the UI). Replace it with your own logic:
-
-```ts
-async executeTask(description: string, task: Schedule<string>) {
-  // Do the actual work
-  await sendEmail({ to: "user@example.com", subject: description });
-
-  // Notify connected clients
-  this.broadcast(
-    JSON.stringify({ type: "scheduled-task", description, timestamp: new Date().toISOString() })
-  );
-}
-```
-
-> **Why `broadcast()` instead of `saveMessages()`?** Injecting into chat history can cause the AI to see the notification as new context and re-trigger the same task in a loop. `broadcast()` sends a one-off event that the client displays separately from the conversation.
-
-### Remove scheduling
-
-If you don't need scheduling, remove `scheduleTask`, `getScheduledTasks`, and `cancelScheduledTask` from the tools object, the `executeTask` method, and the schedule-related imports (`getSchedulePrompt`, `scheduleSchema`, `Schedule`).
-
-### Add state beyond chat messages
-
-Use `this.setState()` and `this.state` for real-time state that syncs to all connected clients. See [Store and sync state](https://developers.cloudflare.com/agents/api-reference/store-and-sync-state/).
-
-### Add callable methods
-
-Expose agent methods as typed RPC that your client can call directly:
-
-```ts
-import { callable } from "agents";
-
-export class ChatAgent extends AIChatAgent<Env> {
-  @callable()
-  async getStats() {
-    return { messageCount: this.messages.length };
-  }
-}
-
-// Client-side:
-const stats = await agent.call("getStats");
-```
-
-See [Callable methods](https://developers.cloudflare.com/agents/api-reference/callable-methods/).
-
-### Connect to MCP servers
-
-Add external tools from MCP servers:
-
-```ts
-async onChatMessage(onFinish, options) {
-  // Connect to an MCP server
-  await this.mcp.connect("https://my-mcp-server.example/sse");
-
-  const result = streamText({
-    // ...
-    tools: {
-      ...myTools,
-      ...this.mcp.getAITools() // Include MCP tools
-    }
-  });
-}
-```
-
-See [MCP Client API](https://developers.cloudflare.com/agents/api-reference/mcp-client-api/).
-
-## Use a different AI model provider
-
-The starter uses [Workers AI](https://developers.cloudflare.com/workers-ai/) by default (no API key needed). To use a different provider:
-
-### OpenAI
-
-```bash
-npm install @ai-sdk/openai
-```
-
-```ts
-// In server.ts, replace the model:
-import { openai } from "@ai-sdk/openai";
-
-// Inside onChatMessage:
-const result = streamText({
-  model: openai("gpt-5.2")
-  // ...
-});
-```
-
-Create a `.env` file with your API key:
-
-```
-OPENAI_API_KEY=your-key-here
-```
-
-### Anthropic
-
-```bash
-npm install @ai-sdk/anthropic
-```
-
-```ts
-import { anthropic } from "@ai-sdk/anthropic";
-
-const result = streamText({
-  model: anthropic("claude-sonnet-4-20250514")
-  // ...
-});
-```
-
-Create a `.env` file with your API key:
-
-```
-ANTHROPIC_API_KEY=your-key-here
-```
-
-## Deploy
-
-```bash
-npm run deploy
-```
-
-Your agent is live on Cloudflare's global network. Messages persist in SQLite, streams resume on disconnect, and the agent hibernates when idle.
-
-## Learn more
-
-- [Agents SDK documentation](https://developers.cloudflare.com/agents/)
-- [Build a chat agent tutorial](https://developers.cloudflare.com/agents/getting-started/build-a-chat-agent/)
-- [Chat agents API reference](https://developers.cloudflare.com/agents/api-reference/chat-agents/)
-- [Workers AI models](https://developers.cloudflare.com/workers-ai/models/)
-
 ## License
 
-MIT
+The agents-starter template is MIT licensed (see `LICENSE`).
