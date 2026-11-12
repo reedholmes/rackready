@@ -122,3 +122,19 @@ Add the guardrails
 ```
 add a short Model Notes section to the README. what failed, how you confirmed it was the model, and what each guardrail does.
 ```
+
+---
+
+## Prompt 11 (2026-11-11 19:31 ET)
+
+```
+why is the build count different from total racks?
+```
+
+---
+
+## Prompt 12 (2026-11-11 19:32 ET)
+
+```
+thanks, next
+```

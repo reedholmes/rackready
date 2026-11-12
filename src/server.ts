@@ -10,7 +10,8 @@ import {
 } from "ai";
 import { z } from "zod";
 import { withDedupedStreams } from "./dedupe-stream";
-import { getBuildPlan, setupDatabase } from "./db";
+import { getBuildPlan, loadPlanningData, setupDatabase } from "./db";
+import { checkMaterialReadiness } from "./readiness";
 
 // Llama 3.3 70B on Workers AI (model ID checked against the Workers AI
 // model catalog and the installed type definitions in env.d.ts).
@@ -95,6 +96,31 @@ export class ChatAgent extends AIChatAgent<Env> {
             return getBuildPlan(this.sql.bind(this), weeks);
           } catch (error) {
             console.error("[rackready] getBuildPlan failed:", error);
+            throw error;
+          }
+        }
+      }),
+
+      checkMaterialReadiness: tool({
+        description:
+          "Check whether each planned rack build has all its components on hand at its integrator site, week by week, including inbound shipments. Returns each build as ready or short, with the short component, quantity short, and the week supply recovers, plus a ready-made summary. Use this for any question about risk, shortages, readiness, or recovery.",
+        inputSchema: z.object({
+          // z.coerce: Llama 3.3 sometimes sends numbers as text.
+          weeks: z.coerce
+            .number()
+            .int()
+            .min(1)
+            .max(8)
+            .describe("How many weeks ahead to check, from 1 to 8")
+        }),
+        execute: async ({ weeks }) => {
+          try {
+            return checkMaterialReadiness(
+              loadPlanningData(this.sql.bind(this)),
+              weeks
+            );
+          } catch (error) {
+            console.error("[rackready] checkMaterialReadiness failed:", error);
             throw error;
           }
         }

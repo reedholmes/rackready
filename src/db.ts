@@ -8,8 +8,12 @@ import {
   SEED_INBOUND,
   SEED_INVENTORY,
   SITE_NAMES,
-  type Build
+  type BomLine,
+  type Build,
+  type InboundRow,
+  type InventoryRow
 } from "./data";
+import type { PlanningData } from "./readiness";
 
 /** The agent's `this.sql` tagged template (Agents SDK). */
 export type Sql = <T = Record<string, string | number | boolean | null>>(
@@ -69,6 +73,16 @@ export function setupDatabase(sql: Sql) {
     sql`INSERT INTO inbound (id, component, site, quantity, expected_week, supplier)
         VALUES (${p.id}, ${p.component}, ${p.site}, ${p.quantity}, ${p.expected_week}, ${p.supplier})`;
   }
+}
+
+/** Read every planning table from SQLite for the readiness calculation. */
+export function loadPlanningData(sql: Sql): PlanningData {
+  return {
+    builds: sql<Build>`SELECT id, week, site, rack_type, quantity, region, priority FROM builds`,
+    bom: sql<BomLine>`SELECT rack_type, component, qty_per_rack FROM bom`,
+    inventory: sql<InventoryRow>`SELECT component, site, on_hand FROM inventory`,
+    inbound: sql<InboundRow>`SELECT id, component, site, quantity, expected_week, supplier FROM inbound`
+  };
 }
 
 /**
