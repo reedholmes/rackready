@@ -162,3 +162,11 @@ Yes, hide them
 ```
 yes, and bring back the 5 questions to this window
 ```
+
+---
+
+## Prompt 16 (2026-11-11 21:50 ET)
+
+```
+Yes, replace them
+```

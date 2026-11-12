@@ -704,10 +704,12 @@ function Chat() {
               contents={
                 <div className="flex flex-wrap justify-center gap-2">
                   {[
-                    "What's the weather in Paris?",
-                    "What timezone am I in?",
-                    "Calculate 5000 * 3",
-                    "Remind me in 5 minutes to take a break"
+                    // The five RackReady demo questions from BUILD_BRIEF.md
+                    "Which rack builds are at risk in the next six weeks?",
+                    "What is short for the week 3 builds, and when does it recover?",
+                    "What are my options for the switch shortage?",
+                    "Log the decision to serve priority 1 builds first.",
+                    "What did we decide last time?"
                   ].map((prompt) => (
                     <Button
                       key={prompt}
