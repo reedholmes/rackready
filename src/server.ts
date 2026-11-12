@@ -49,9 +49,6 @@ Rules:
 export class ChatAgent extends AIChatAgent<Env> {
   maxPersistedMessages = 100;
   chatRecovery = true;
-  // Wait for MCP connections to be re-established after hibernation before
-  // processing a message, so MCP tools aren't intermittently missing.
-  waitForMcpConnections = true;
 
   async onStart() {
     // Create the mock data tables and seed them on first run.
@@ -70,22 +67,6 @@ export class ChatAgent extends AIChatAgent<Env> {
         weekly.time * 1000
       ).toISOString()}, review schedules on file: ${reviewSchedules}`
     );
-
-    // Configure OAuth popup behavior for MCP servers that require authentication
-    this.mcp.configureOAuthCallback({
-      customHandler: (result) => {
-        if (result.authSuccess) {
-          return new Response("<script>window.close();</script>", {
-            headers: { "content-type": "text/html" },
-            status: 200
-          });
-        }
-        return new Response(
-          `Authentication Failed: ${result.authError || "Unknown error"}`,
-          { headers: { "content-type": "text/plain" }, status: 400 }
-        );
-      }
-    });
   }
 
   /**
@@ -128,27 +109,16 @@ export class ChatAgent extends AIChatAgent<Env> {
     return await this.weeklyReview("manual");
   }
 
-  @callable()
-  async addServer(name: string, url: string) {
-    return await this.addMcpServer(name, url);
-  }
-
-  @callable()
-  async removeServer(serverId: string) {
-    await this.removeMcpServer(serverId);
-  }
-
   async onChatMessage(_onFinish: unknown, options?: OnChatMessageOptions) {
-    const mcpTools = this.mcp.getAITools();
     // The binding is wrapped to remove doubled text (see dedupe-stream.ts).
     const workersai = createWorkersAI({
       binding: withDedupedStreams(this.env.AI)
     });
 
+    // The starter's MCP feature (connecting outside tool servers) was removed
+    // before deployment: every visitor shares one agent, so any visitor could
+    // have added tools for the model to call.
     const tools = {
-      // MCP tools from connected servers (starter feature, left in place)
-      ...mcpTools,
-
       getBuildPlan: tool({
         description:
           "Get the planned rack builds for the next N weeks (week 1 is this week). Returns each build's id, week, integrator site, rack type, number of racks, destination region and priority, plus totals.",
@@ -262,7 +232,24 @@ export class ChatAgent extends AIChatAgent<Env> {
             .map((p) => (p.type === "text" ? p.text : ""))
             .join(" ")
         : "";
+    // Also offer it when the user is answering the options question (the
+    // previous assistant reply came from proposeAllocation). In testing, a
+    // reply of "1" made Llama claim the choice was saved when the tool was
+    // not offered. With the tool offered, the Approve/Reject card appears and
+    // nothing is saved without the user's click.
+    let previousAssistant = lastUser - 1;
+    while (
+      previousAssistant >= 0 &&
+      this.messages[previousAssistant].role !== "assistant"
+    )
+      previousAssistant--;
+    const answeringOptions =
+      previousAssistant >= 0 &&
+      this.messages[previousAssistant].parts.some(
+        (p) => isToolUIPart(p) && getToolName(p) === "proposeAllocation"
+      );
     const askedToLog =
+      answeringOptions ||
       /\b(log|logged|logging|record|recorded|save|saved|note down|write down)\b/i.test(
         lastUserText
       );

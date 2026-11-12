@@ -23,6 +23,7 @@ RackReady runs on Llama 3.3 70B on Workers AI (`@cf/meta/llama-3.3-70b-instruct-
 | 11 | Occasionally Llama calls a tool it was not offered (a repeat of `checkMaterialReadiness`, or an invented `getDecision`). The chat showed a red Error card, but the final answer was still correct. | Model. |
 | 12 | Asked "What did we decide last time?", Llama read the log and then asked to log a decision again. Nothing was saved (the approval card held), but the question was never answered. | Model: it calls tools the question does not need. |
 | 13 | Asked which builds were at risk, Llama replied only "The decision was saved." although no decision tool ran. | Model, triggered by a prompt rule about confirming saved decisions, which it applied out of context. The rule was removed; the guardrails below cover Approve and Reject without it. |
+| 14 | After the options question, the user replied "1" and Llama said "This decision has been saved." although no decision tool ran (it was not offered, because "1" does not ask to save). | Model: it claims an action it did not take. |
 
 ### How we confirmed the cause
 
@@ -40,7 +41,7 @@ RackReady runs on Llama 3.3 70B on Workers AI (`@cf/meta/llama-3.3-70b-instruct-
 | Empty tool list removal | `src/dedupe-stream.ts` | Leaves `tools` out of the request when the list is empty, instead of sending `[]`. |
 | Input coercion | `src/server.ts` (`z.coerce`) | Accepts `"8"` as `8` in tool inputs. |
 | Once-per-tool rule | `src/server.ts` (`prepareStep`) | Before each model step, hides the tools already called for the current question. Llama can call a different tool or answer, but cannot repeat one. Right after **Approve**, every tool stays visible but none can be called (`toolChoice: "none"`), so Llama answers in words. |
-| Save only when asked | `src/server.ts` | `logDecision` is offered to the model only when the user's message asks to log, record, or save something. |
+| Save only when asked | `src/server.ts` | `logDecision` is offered to the model only when the user's message asks to log, record, or save something, or answers the allocation options question. Either way the Approve/Reject card still decides. |
 | Fixed reply on Reject | `src/server.ts` | When the user rejects an approval, the code replies "OK, the decision was not saved." without calling the model. |
 | Hide invalid tool calls | `src/hide-invalid-tool-calls.ts` | Holds each tool call's chat card until the AI library decides whether the call is valid. Invalid calls (tools Llama was not offered) are dropped from the chat and logged on the server; the model still sees the error and recovers. Covered by an automated test. |
 | Ready-made option text | `src/allocation.ts` | Each option's effect on the builds is written into the same sentence as the action, so Llama repeats it. |
@@ -73,7 +74,7 @@ npm run dev
 
 > **Cloudflare authentication is required to run locally.** This template uses
 > Workers AI with `"ai": { "remote": true }` in `wrangler.jsonc`, and Workers AI
-> has no local simulator — so `npm run dev` opens a remote proxy session against
+> has no local simulator â€” so `npm run dev` opens a remote proxy session against
 > Cloudflare and needs you to be authenticated. Either run `wrangler login` once
 > in an interactive terminal, or set a `CLOUDFLARE_API_TOKEN` environment
 > variable (e.g. in a `.env` file). No third-party (OpenAI/Anthropic) key is
@@ -83,11 +84,11 @@ Open [http://localhost:5173](http://localhost:5173) to see your agent in action.
 
 Try these prompts to see the different features:
 
-- **"What's the weather in Paris?"** — server-side tool (runs automatically)
-- **"What timezone am I in?"** — client-side tool (browser provides the answer)
-- **"Calculate 5000 \* 3"** — approval tool (asks you before running)
-- **"Remind me in 5 minutes to take a break"** — scheduling
-- **Drop an image and ask "What's in this image?"** — vision (image understanding)
+- **"What's the weather in Paris?"** â€” server-side tool (runs automatically)
+- **"What timezone am I in?"** â€” client-side tool (browser provides the answer)
+- **"Calculate 5000 \* 3"** â€” approval tool (asks you before running)
+- **"Remind me in 5 minutes to take a break"** â€” scheduling
+- **Drop an image and ask "What's in this image?"** â€” vision (image understanding)
 
 ## Project structure
 
@@ -101,20 +102,20 @@ src/
 
 ## What's included
 
-- **AI Chat** — Streaming responses powered by Workers AI via `AIChatAgent`
-- **Image input** — Drag-and-drop, paste, or click to attach images for vision-capable models
-- **Three tool patterns** — server-side auto-execute, client-side (browser), and human-in-the-loop approval
-- **Scheduling** — one-time, delayed, and recurring (cron) tasks
-- **Reasoning display** — shows model thinking as it streams, collapses when done
-- **Debug mode** — toggle in the header to inspect raw message JSON for each message
-- **Kumo UI** — Cloudflare's design system with dark/light mode
-- **Real-time** — WebSocket connection with automatic reconnection and message persistence
+- **AI Chat** â€” Streaming responses powered by Workers AI via `AIChatAgent`
+- **Image input** â€” Drag-and-drop, paste, or click to attach images for vision-capable models
+- **Three tool patterns** â€” server-side auto-execute, client-side (browser), and human-in-the-loop approval
+- **Scheduling** â€” one-time, delayed, and recurring (cron) tasks
+- **Reasoning display** â€” shows model thinking as it streams, collapses when done
+- **Debug mode** â€” toggle in the header to inspect raw message JSON for each message
+- **Kumo UI** â€” Cloudflare's design system with dark/light mode
+- **Real-time** â€” WebSocket connection with automatic reconnection and message persistence
 
 ## Making it your own
 
 ### Name your project
 
-Update the name in `package.json` and `wrangler.jsonc` — the `name` in `wrangler.jsonc` becomes your deployed Worker's URL (`<name>.<subdomain>.workers.dev`).
+Update the name in `package.json` and `wrangler.jsonc` â€” the `name` in `wrangler.jsonc` becomes your deployed Worker's URL (`<name>.<subdomain>.workers.dev`).
 
 ### Change the system prompt
 
