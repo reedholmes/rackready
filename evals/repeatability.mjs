@@ -143,6 +143,9 @@ async function approve(ws, toolCallId) {
 // Reading turns and grading answers live in grade.mjs.
 
 // ── One round ──────────────────────────────────────────────────────────
+class InfraError extends Error {}
+let consecutiveInfraErrors = 0;
+
 async function runRound(round, runId) {
   const name = `eval-${runId}-r${round}`;
   let ws = await connect(name);
@@ -195,6 +198,21 @@ async function runRound(round, runId) {
         `  round ${round} ${q.key} ${mark} ${graded.seconds}s tools=[${graded.tools.join(",")}]` +
           (failed.length ? `  failed: ${failed.join("; ")}` : "")
       );
+
+      // An error with no answer and no tool calls means the agent could not
+      // reach the model at all (seen when the Workers AI daily allowance ran
+      // out). That measures the infrastructure, not the agent, so stop.
+      if (status.error && !graded.answer && graded.tools.length === 0) {
+        consecutiveInfraErrors++;
+        if (consecutiveInfraErrors >= 3) {
+          throw new InfraError(
+            "Stopped: 3 replies in a row errored before the model answered. " +
+              "Check the dev server log (for example, Workers AI daily allowance used up)."
+          );
+        }
+      } else {
+        consecutiveInfraErrors = 0;
+      }
     }
   } finally {
     ws.close();
@@ -211,6 +229,10 @@ for (let r = 1; r <= ROUNDS; r++) {
   try {
     all.push(...(await runRound(r, runId)));
   } catch (e) {
+    if (e instanceof InfraError) {
+      console.log(`\n${e.message}\nNo report written.`);
+      process.exit(2);
+    }
     console.log(`  round ${r} aborted: ${e.message}`);
     all.push({ round: r, question: "round", pass: false, checks: [{ name: "round completed", pass: false, detail: e.message }], tools: [], answer: "" });
   }

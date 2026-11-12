@@ -134,6 +134,8 @@ Latest run (local, 2026-11-12, 10 rounds): **47 of 50 answers passed; 7 of 10 ro
 
 No answer contained an untraceable number, a false save claim, or an Error card. The three failures were real: twice on Q1, Llama received the correct readiness result, made an extra `getBuildPlan` call, and then replied that it had no data; once on Q2 it gave the switch and recovery week but left out B-06 and the quantity. Q1 also made 14 extra tool calls across the 10 rounds. Full reports are in `evals/results/`.
 
+**Cost:** the eval calls Workers AI about 60 times per 10 rounds. On the free plan (10,000 neurons per day), a day of building and testing plus one 10-round run used up the daily allowance, after which every request fails, including the deployed demo. The runner detects this (three errors in a row before the model answers) and stops without writing a report.
+
 ## Built with AI assistance
 
 This project was built with AI assistance, and the full prompt history is in [PROMPTS.md](PROMPTS.md).
