@@ -61,6 +61,15 @@ export function setupDatabase(sql: Sql) {
     summary TEXT NOT NULL
   )`;
 
+  // Shortage reviews: one row per weekly (or on-demand) review run.
+  sql`CREATE TABLE IF NOT EXISTS reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    trigger TEXT NOT NULL,
+    short_count INTEGER NOT NULL,
+    summary TEXT NOT NULL
+  )`;
+
   // Seed only once: if builds already has rows, the data is already there.
   const [{ n }] = sql<{ n: number }>`SELECT COUNT(*) AS n FROM builds`;
   if (n > 0) return;
@@ -89,6 +98,18 @@ export function logDecision(sql: Sql, summary: string) {
   sql`INSERT INTO decisions (created_at, summary) VALUES (${createdAt}, ${summary})`;
   const [row] = sql<{ id: number }>`SELECT last_insert_rowid() AS id`;
   return { saved: true, decisionId: row.id, savedAt: createdAt, summary };
+}
+
+/** Store one shortage review run. */
+export function saveReview(
+  sql: Sql,
+  createdAt: string,
+  trigger: string,
+  shortCount: number,
+  summary: string
+) {
+  sql`INSERT INTO reviews (created_at, trigger, short_count, summary)
+      VALUES (${createdAt}, ${trigger}, ${shortCount}, ${summary})`;
 }
 
 /** Past decisions, newest first. */

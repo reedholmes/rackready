@@ -20,6 +20,7 @@ import {
   listDecisions,
   loadPlanningData,
   logDecision,
+  saveReview,
   setupDatabase
 } from "./db";
 import { checkMaterialReadiness } from "./readiness";
@@ -28,6 +29,10 @@ import { proposeAllocation } from "./allocation";
 // Llama 3.3 70B on Workers AI (model ID checked against the Workers AI
 // model catalog and the installed type definitions in env.d.ts).
 const MODEL_ID = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+
+// Weekly shortage review (BUILD_BRIEF.md "Scheduled review").
+const REVIEW_CRON = "0 13 * * 1"; // Mondays 13:00 (server clock)
+const REVIEW_WEEKS = 6;
 
 // System prompt, taken from the "System prompt guidance" in BUILD_BRIEF.md.
 const SYSTEM_PROMPT = `You are RackReady, a planning assistant for data center rack integration. You help a supply chain program manager check material readiness against the rack build plan.
@@ -48,9 +53,23 @@ export class ChatAgent extends AIChatAgent<Env> {
   // processing a message, so MCP tools aren't intermittently missing.
   waitForMcpConnections = true;
 
-  onStart() {
+  async onStart() {
     // Create the mock data tables and seed them on first run.
     setupDatabase(this.sql.bind(this));
+
+    // Weekly shortage review: Mondays at 13:00 by the server clock. Expected
+    // to be UTC on Cloudflare; in local dev it followed the PC's time zone.
+    // Cron schedules are idempotent in the Agents SDK, so calling this on
+    // every start keeps exactly one schedule.
+    const weekly = await this.schedule(REVIEW_CRON, "weeklyReview", "scheduled");
+    const reviewSchedules = (await this.listSchedules()).filter(
+      (s) => s.callback === "weeklyReview"
+    ).length;
+    console.log(
+      `[rackready] weekly review scheduled (${REVIEW_CRON}), next run ${new Date(
+        weekly.time * 1000
+      ).toISOString()}, review schedules on file: ${reviewSchedules}`
+    );
 
     // Configure OAuth popup behavior for MCP servers that require authentication
     this.mcp.configureOAuthCallback({
@@ -67,6 +86,46 @@ export class ChatAgent extends AIChatAgent<Env> {
         );
       }
     });
+  }
+
+  /**
+   * The shortage review. Called by the weekly schedule ("scheduled") and by
+   * the "Run review now" button ("manual"). Runs checkMaterialReadiness for
+   * 6 weeks, stores the result, and posts the code-written summary into the
+   * chat history so the agent leads with it next time the chat is opened.
+   * No model is involved, so no numbers can be changed on the way.
+   */
+  async weeklyReview(trigger: string = "scheduled") {
+    const sql = this.sql.bind(this);
+    const result = checkMaterialReadiness(loadPlanningData(sql), REVIEW_WEEKS);
+    const now = new Date();
+    const createdAt = now.toISOString();
+    saveReview(sql, createdAt, trigger, result.shortCount, result.summary);
+
+    const when = `${createdAt.slice(0, 10)} ${createdAt.slice(11, 16)} UTC`;
+    const label = trigger === "manual" ? "run on demand" : "weekly schedule";
+    const text =
+      `**Shortage review** (${label}, ${when})\n\n${result.summary}` +
+      (result.shortCount > 0
+        ? "\n\nAsk me for your options on any shortage."
+        : "");
+
+    await this.persistMessages([
+      ...this.messages,
+      {
+        id: `review-${now.getTime()}`,
+        role: "assistant",
+        parts: [{ type: "text", text }]
+      }
+    ]);
+    console.log(`[rackready] review (${trigger}) saved: ${result.summary}`);
+    return { savedAt: createdAt, shortCount: result.shortCount };
+  }
+
+  /** "Run review now" button in the chat header. */
+  @callable()
+  async runReviewNow() {
+    return await this.weeklyReview("manual");
   }
 
   @callable()

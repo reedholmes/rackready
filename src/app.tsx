@@ -37,7 +37,8 @@ import {
   XIcon,
   WrenchIcon,
   PaperclipIcon,
-  ImageIcon
+  ImageIcon,
+  ClipboardTextIcon
 } from "@phosphor-icons/react";
 
 // ── Attachment helpers ────────────────────────────────────────────────
@@ -280,6 +281,7 @@ function Chat() {
   const [mcpUrl, setMcpUrl] = useState("");
   const [isAddingServer, setIsAddingServer] = useState(false);
   const mcpPanelRef = useRef<HTMLDivElement>(null);
+  const [runningReview, setRunningReview] = useState(false);
 
   const agent = useAgent<ChatAgent>({
     agent: "ChatAgent",
@@ -683,6 +685,23 @@ function Chat() {
                 </div>
               )}
             </div>
+            <Button
+              variant="secondary"
+              icon={<ClipboardTextIcon size={16} />}
+              disabled={!connected || runningReview || isStreaming}
+              onClick={async () => {
+                setRunningReview(true);
+                try {
+                  await agent.stub.runReviewNow();
+                } catch (e) {
+                  console.error("Review failed:", e);
+                } finally {
+                  setRunningReview(false);
+                }
+              }}
+            >
+              {runningReview ? "Reviewing..." : "Run review now"}
+            </Button>
             <Button
               variant="secondary"
               icon={<TrashIcon size={16} />}
