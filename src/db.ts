@@ -53,6 +53,14 @@ export function setupDatabase(sql: Sql) {
     supplier TEXT NOT NULL
   )`;
 
+  // Decisions log: starts empty and is never seeded. Rows are only added by
+  // logDecision after the user approves in the chat.
+  sql`CREATE TABLE IF NOT EXISTS decisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    summary TEXT NOT NULL
+  )`;
+
   // Seed only once: if builds already has rows, the data is already there.
   const [{ n }] = sql<{ n: number }>`SELECT COUNT(*) AS n FROM builds`;
   if (n > 0) return;
@@ -73,6 +81,32 @@ export function setupDatabase(sql: Sql) {
     sql`INSERT INTO inbound (id, component, site, quantity, expected_week, supplier)
         VALUES (${p.id}, ${p.component}, ${p.site}, ${p.quantity}, ${p.expected_week}, ${p.supplier})`;
   }
+}
+
+/** Save one decision. Only called after the user approves in the chat. */
+export function logDecision(sql: Sql, summary: string) {
+  const createdAt = new Date().toISOString();
+  sql`INSERT INTO decisions (created_at, summary) VALUES (${createdAt}, ${summary})`;
+  const [row] = sql<{ id: number }>`SELECT last_insert_rowid() AS id`;
+  return { saved: true, decisionId: row.id, savedAt: createdAt, summary };
+}
+
+/** Past decisions, newest first. */
+export function listDecisions(sql: Sql, limit = 20) {
+  const rows = sql<{ id: number; created_at: string; summary: string }>`
+    SELECT id, created_at, summary FROM decisions ORDER BY id DESC LIMIT ${limit}`;
+  return {
+    decisionCount: rows.length,
+    decisions: rows.map((r) => ({
+      id: r.id,
+      savedAt: r.created_at,
+      summary: r.summary
+    })),
+    note:
+      rows.length === 0
+        ? "No decisions have been logged yet."
+        : "Newest first. Times are UTC."
+  };
 }
 
 /** Read every planning table from SQLite for the readiness calculation. */

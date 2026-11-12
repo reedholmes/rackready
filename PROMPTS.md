@@ -138,3 +138,11 @@ why is the build count different from total racks?
 ```
 thanks, next
 ```
+
+---
+
+## Prompt 13 (2026-11-11 20:00 ET)
+
+```
+move onto step 4 but keep an eye on the tool readiness call.
+```

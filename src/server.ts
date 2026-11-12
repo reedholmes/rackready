@@ -3,6 +3,10 @@ import { callable, routeAgentRequest } from "agents";
 import { AIChatAgent, type OnChatMessageOptions } from "@cloudflare/ai-chat";
 import {
   convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  getToolName,
+  isToolUIPart,
   pruneMessages,
   stepCountIs,
   streamText,
@@ -10,8 +14,15 @@ import {
 } from "ai";
 import { z } from "zod";
 import { withDedupedStreams } from "./dedupe-stream";
-import { getBuildPlan, loadPlanningData, setupDatabase } from "./db";
+import {
+  getBuildPlan,
+  listDecisions,
+  loadPlanningData,
+  logDecision,
+  setupDatabase
+} from "./db";
 import { checkMaterialReadiness } from "./readiness";
+import { proposeAllocation } from "./allocation";
 
 // Llama 3.3 70B on Workers AI (model ID checked against the Workers AI
 // model catalog and the installed type definitions in env.d.ts).
@@ -27,7 +38,8 @@ Rules:
 - If no tool can answer a question about builds, inventory, or shortages, say you do not have that data yet. Do not guess.
 - Lead with the answer: what is at risk, by how much, and when it recovers.
 - When supply is constrained, present the options and ask the user to choose. Do not choose for them.
-- If asked where the data comes from, say clearly that all data in this demo is mock data.`;
+- If asked where the data comes from, say clearly that all data in this demo is mock data.
+- Logging decisions: after logDecision returns saved, confirm in one sentence that the decision was saved. If the user rejected logDecision, say in one sentence that the decision was not saved, and do not ask to log it again. Never say that a tool or function is unavailable.`;
 
 export class ChatAgent extends AIChatAgent<Env> {
   maxPersistedMessages = 100;
@@ -124,8 +136,90 @@ export class ChatAgent extends AIChatAgent<Env> {
             throw error;
           }
         }
+      }),
+
+      proposeAllocation: tool({
+        description:
+          "When a component is short at a site, return two or three allocation options (for example serve by priority, transfer stock from the other site, expedite a shipment), each with its effect on the affected builds and its tradeoff. Use this when the user asks for options or what to do about a shortage. For each option, tell the user the action, the effect on each build, and the tradeoff, then ask them to choose.",
+        inputSchema: z.object({
+          component: z
+            .string()
+            .describe(
+              "Component code such as SW-TOR-48, or its name such as top-of-rack switch"
+            ),
+          site: z.string().describe("Integrator site: Texas (TX) or Malaysia (MY)")
+        }),
+        execute: async ({ component, site }) => {
+          try {
+            return proposeAllocation(
+              loadPlanningData(this.sql.bind(this)),
+              component,
+              site
+            );
+          } catch (error) {
+            console.error("[rackready] proposeAllocation failed:", error);
+            throw error;
+          }
+        }
+      }),
+
+      logDecision: tool({
+        description:
+          "Save a planning decision to the decisions log. Use this when the user asks to log, record, or save a decision. The user must approve in the chat before it is saved.",
+        inputSchema: z.object({
+          summary: z
+            .string()
+            .describe("One or two sentences describing the decision, in the user's words")
+        }),
+        // Human in the loop: the chat shows Approve / Reject first.
+        needsApproval: true,
+        execute: async ({ summary }) => logDecision(this.sql.bind(this), summary)
+      }),
+
+      listDecisions: tool({
+        description:
+          "List past planning decisions from the decisions log, newest first. Use this when the user asks what was decided before.",
+        inputSchema: z.object({}),
+        execute: async () => listDecisions(this.sql.bind(this))
       })
     };
+
+    // Tool calls made since the user's last message. Non-empty only when
+    // this run is a continuation after Approve / Reject (see guardrail 2).
+    let lastUser = this.messages.length - 1;
+    while (lastUser >= 0 && this.messages[lastUser].role !== "user") lastUser--;
+    const toolPartsThisQuestion = this.messages
+      .slice(lastUser + 1)
+      .flatMap((m) => m.parts)
+      .filter(isToolUIPart);
+    const usedThisQuestion = toolPartsThisQuestion.map((part) => getToolName(part));
+
+    // Guardrail 3: after the user clicks Reject, reply with fixed text and do
+    // not call the model. In testing, Llama 3.3 kept trying to log the
+    // rejected decision again (as a new approval request, or printed as text).
+    const rejected = toolPartsThisQuestion.some(
+      (p) =>
+        p.state === "output-denied" ||
+        (p.state === "approval-responded" && p.approval.approved === false)
+    );
+    const approvedWaiting = toolPartsThisQuestion.some(
+      (p) => p.state === "approval-responded" && p.approval.approved === true
+    );
+    if (rejected && !approvedWaiting) {
+      const stream = createUIMessageStream({
+        execute: ({ writer }) => {
+          const id = crypto.randomUUID();
+          writer.write({ type: "text-start", id });
+          writer.write({
+            type: "text-delta",
+            id,
+            delta: "OK, the decision was not saved."
+          });
+          writer.write({ type: "text-end", id });
+        }
+      });
+      return createUIMessageStreamResponse({ stream });
+    }
 
     const result = streamText({
       model: workersai(MODEL_ID, {
@@ -139,10 +233,16 @@ export class ChatAgent extends AIChatAgent<Env> {
       }),
       tools,
       // Guardrail 2: each tool can be called at most once per question.
-      // Before every model step, hide the tools already called in this turn.
-      // This stops Llama 3.3 from calling the same tool over and over instead
-      // of answering. Once every useful tool is used, it has to answer.
+      // a) After the user clicks Approve, a new run starts for the same
+      //    question. In that run the model may not call any tool, it must
+      //    answer in words. (Hiding the tools instead made Llama 3.3 say the
+      //    function was "not provided". Reject is handled by guardrail 3.)
+      // b) Otherwise, before every model step, hide the tools already called
+      //    in this run, so Llama cannot call the same tool over and over.
       prepareStep: ({ steps }) => {
+        if (usedThisQuestion.length > 0) {
+          return { toolChoice: "none" as const };
+        }
         const used = new Set(
           steps.flatMap((step) => step.toolCalls.map((call) => call.toolName))
         );

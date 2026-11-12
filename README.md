@@ -17,6 +17,10 @@ RackReady runs on Llama 3.3 70B on Workers AI (`@cf/meta/llama-3.3-70b-instruct-
 | 5 | Llama called `getBuildPlan` 10 times with the same input and never answered. | Model: it repeats tool calls even after getting a correct result. |
 | 6 | After the once-per-tool rule hid every tool, the request failed: "`tools` must not be an empty array". | Platform: Workers AI rejects an empty tool list. |
 | 7 | Answers would cut off around 190 words. | Platform default: Workers AI caps output at 256 tokens unless told otherwise. |
+| 8 | After the user clicked **Reject** on a decision, Llama asked to log the same decision again, then printed the tool call as plain text. | Model: it retries a rejected action. |
+| 9 | After **Approve** or **Reject**, Llama replied that the tool "is not provided". | Guardrail side effect: the tool it had just used was hidden from it. |
+| 10 | Allocation answers skipped each option's effect on the builds when the effect was a separate field. | Model: it reliably repeats some fields and skips others. |
+| 11 | Occasionally Llama calls a tool it was not offered (a repeat of `checkMaterialReadiness`, or an invented `getDecision`). The chat shows a red Error card, but the final answer is still correct. | Model. Not yet guarded. |
 
 ### How we confirmed the cause
 
@@ -33,7 +37,9 @@ RackReady runs on Llama 3.3 70B on Workers AI (`@cf/meta/llama-3.3-70b-instruct-
 | Stream filter | `src/dedupe-stream.ts` | When a packet carries the same text or tool call in both fields, keeps the OpenAI-style copy and drops the native one. Packets with a single copy pass through untouched, so the filter does nothing if the platform is fixed. |
 | Empty tool list removal | `src/dedupe-stream.ts` | Leaves `tools` out of the request when the list is empty, instead of sending `[]`. |
 | Input coercion | `src/server.ts` (`z.coerce`) | Accepts `"8"` as `8` in tool inputs. |
-| Once-per-tool rule | `src/server.ts` (`prepareStep`) | Before each model step, hides the tools already called for the current question. Llama can call a different tool or answer, but cannot repeat one. |
+| Once-per-tool rule | `src/server.ts` (`prepareStep`) | Before each model step, hides the tools already called for the current question. Llama can call a different tool or answer, but cannot repeat one. Right after **Approve**, every tool stays visible but none can be called (`toolChoice: "none"`), so Llama answers in words. |
+| Fixed reply on Reject | `src/server.ts` | When the user rejects an approval, the code replies "OK, the decision was not saved." without calling the model. |
+| Ready-made option text | `src/allocation.ts` | Each option's effect on the builds is written into the same sentence as the action, so Llama repeats it. |
 | Step cap | `src/server.ts` (`stepCountIs(10)`) | A backstop that ends any turn after 10 model steps. |
 | Output limit | `src/server.ts` (`maxOutputTokens: 1024`) | Raises the 256-token default so longer answers are not cut off. |
 | Prompt rules | `src/server.ts` (system prompt) | Never calculate, only repeat numbers a tool returned, and only call a tool when the question needs data. |
