@@ -63,7 +63,8 @@ Browser (React chat UI)  <-- WebSocket -->  ChatAgent (Durable Object on Cloudfl
 | `src/allocation.ts` | The allocation options. |
 | `src/dedupe-stream.ts`, `src/hide-invalid-tool-calls.ts` | Workarounds described in Model Notes. |
 | `src/app.tsx` | The chat UI from the starter, with small RackReady changes. |
-| `src/*.test.ts` | 17 automated tests. |
+| `src/*.test.ts` | Automated tests for the code. |
+| `evals/` | Repeatability eval: runner, grader, grader tests, and results. |
 
 ## What is mock
 
@@ -95,7 +96,13 @@ Then open http://localhost:5173.
 npm test
 ```
 
-runs the 17 automated tests (readiness, allocation options, and the invalid tool call filter).
+runs the 23 automated tests. With `npm run dev` running in another terminal,
+
+```bash
+npm run eval
+```
+
+runs the repeatability eval (see [Evals](#evals)).
 
 ```bash
 npm run deploy
@@ -104,6 +111,28 @@ npm run deploy
 builds and deploys to your own Cloudflare account.
 
 Note: in local development the weekly cron schedule followed the computer's time zone; on Cloudflare it runs in UTC (confirmed in the production logs: next run Monday 13:00 UTC).
+
+## Evals
+
+**Automated tests** (`npm test`, 23 tests) cover the code: the readiness calculation, the allocation options, the invalid tool call filter, and the eval grader itself.
+
+**Repeatability eval** (`npm run eval`, needs `npm run dev` running) covers the model. It runs the five demo questions in 10 rounds, each in a fresh agent instance with freshly seeded data, clicks Approve on the decision card the same way the UI does, and grades every answer automatically:
+
+- **Numbers come from tools:** every number in the reply must appear in a tool output or the question. This is a check on the "the model never does arithmetic" rule. It is lenient: a sum stated using numbers that already appear in tool output would pass.
+- **No false save claim:** the reply may say "saved" only if `logDecision` actually saved.
+- **Right tool, no Error cards, and the key facts** (B-06, short 4, recovers week 5; all three options; the approval card; recalling the decision).
+
+Latest run (local, 2026-11-12, 10 rounds): **47 of 50 answers passed; 7 of 10 rounds passed all five questions.**
+
+| Question | Pass rate | Median seconds |
+|---|---|---|
+| Q1 At risk in six weeks? | 8/10 | 5.8 |
+| Q2 Week 3 shortage and recovery? | 9/10 | 3.7 |
+| Q3 Options? | 10/10 | 11.7 |
+| Q4 Log the decision (with Approve) | 10/10 | 2.4 |
+| Q5 What did we decide? | 10/10 | 1.8 |
+
+No answer contained an untraceable number, a false save claim, or an Error card. The three failures were real: twice on Q1, Llama received the correct readiness result, made an extra `getBuildPlan` call, and then replied that it had no data; once on Q2 it gave the switch and recovery week but left out B-06 and the quantity. Q1 also made 14 extra tool calls across the 10 rounds. Full reports are in `evals/results/`.
 
 ## Built with AI assistance
 

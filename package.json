@@ -18,7 +18,8 @@
     "format": "oxfmt --write .",
     "lint": "oxlint src/",
     "check": "oxfmt --check . && oxlint src/ && tsc",
-    "test": "vitest run"
+    "test": "vitest run",
+    "eval": "node evals/repeatability.mjs"
   },
   "dependencies": {
     "@cloudflare/ai-chat": "^0.9.3",

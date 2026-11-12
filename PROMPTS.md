@@ -196,3 +196,19 @@ Answers given in multiple-choice dialogs during this step:
 - MCP panel before deploying: "Remove MCP, then deploy (Recommended)"
 - Cost of public deployment: "Yes, deploy"
 - How picking an option should work: "Offer the save on a pick (Recommended)"
+
+---
+
+## Prompt 19 (2026-11-11 22:52 ET)
+
+```
+are there any other evals we can do?
+```
+
+---
+
+## Prompt 20 (2026-11-11 22:53 ET)
+
+```
+Repeatability eval
+```
