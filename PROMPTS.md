@@ -146,3 +146,11 @@ thanks, next
 ```
 move onto step 4 but keep an eye on the tool readiness call.
 ```
+
+---
+
+## Prompt 14 (2026-11-11 21:10 ET)
+
+```
+Yes, hide them
+```

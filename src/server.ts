@@ -14,6 +14,7 @@ import {
 } from "ai";
 import { z } from "zod";
 import { withDedupedStreams } from "./dedupe-stream";
+import { hideInvalidToolCalls } from "./hide-invalid-tool-calls";
 import {
   getBuildPlan,
   listDecisions,
@@ -258,7 +259,11 @@ export class ChatAgent extends AIChatAgent<Env> {
       abortSignal: options?.abortSignal
     });
 
-    return result.toUIMessageStreamResponse();
+    // Guardrail 4: hide invalid tool calls (tools Llama was not offered)
+    // from the chat. See hide-invalid-tool-calls.ts.
+    return createUIMessageStreamResponse({
+      stream: result.toUIMessageStream().pipeThrough(hideInvalidToolCalls())
+    });
   }
 }
 
