@@ -10,6 +10,7 @@ import {
 } from "ai";
 import { z } from "zod";
 import { withDedupedStreams } from "./dedupe-stream";
+import { getBuildPlan, setupDatabase } from "./db";
 
 // Llama 3.3 70B on Workers AI (model ID checked against the Workers AI
 // model catalog and the installed type definitions in env.d.ts).
@@ -35,6 +36,9 @@ export class ChatAgent extends AIChatAgent<Env> {
   waitForMcpConnections = true;
 
   onStart() {
+    // Create the mock data tables and seed them on first run.
+    setupDatabase(this.sql.bind(this));
+
     // Configure OAuth popup behavior for MCP servers that require authentication
     this.mcp.configureOAuthCallback({
       customHandler: (result) => {
@@ -69,6 +73,34 @@ export class ChatAgent extends AIChatAgent<Env> {
       binding: withDedupedStreams(this.env.AI)
     });
 
+    const tools = {
+      // MCP tools from connected servers (starter feature, left in place)
+      ...mcpTools,
+
+      getBuildPlan: tool({
+        description:
+          "Get the planned rack builds for the next N weeks (week 1 is this week). Returns each build's id, week, integrator site, rack type, number of racks, destination region and priority, plus totals.",
+        inputSchema: z.object({
+          // Guardrail 1: z.coerce accepts "8" (text) as well as 8 (number),
+          // because Llama 3.3 sometimes sends numbers as text.
+          weeks: z.coerce
+            .number()
+            .int()
+            .min(1)
+            .max(8)
+            .describe("How many weeks ahead to include, from 1 to 8")
+        }),
+        execute: async ({ weeks }) => {
+          try {
+            return getBuildPlan(this.sql.bind(this), weeks);
+          } catch (error) {
+            console.error("[rackready] getBuildPlan failed:", error);
+            throw error;
+          }
+        }
+      })
+    };
+
     const result = streamText({
       model: workersai(MODEL_ID, {
         sessionAffinity: this.sessionAffinity
@@ -79,23 +111,23 @@ export class ChatAgent extends AIChatAgent<Env> {
         messages: await convertToModelMessages(this.messages),
         toolCalls: "before-last-2-messages"
       }),
-      tools: {
-        // MCP tools from connected servers (starter feature, left in place)
-        ...mcpTools,
-
-        // TEMPORARY (step 1 only): proves Llama 3.3 can make a real tool
-        // call. Replaced by getBuildPlan in step 2.
-        checkConnection: tool({
-          description:
-            "Check that the RackReady agent is connected. Use this when the user asks whether the agent is working, connected, or online.",
-          inputSchema: z.object({}),
-          execute: async () => ({
-            status: "connected",
-            agent: "RackReady",
-            serverTime: new Date().toISOString()
-          })
-        })
+      tools,
+      // Guardrail 2: each tool can be called at most once per question.
+      // Before every model step, hide the tools already called in this turn.
+      // This stops Llama 3.3 from calling the same tool over and over instead
+      // of answering. Once every useful tool is used, it has to answer.
+      prepareStep: ({ steps }) => {
+        const used = new Set(
+          steps.flatMap((step) => step.toolCalls.map((call) => call.toolName))
+        );
+        const remaining = (Object.keys(tools) as (keyof typeof tools)[]).filter(
+          (name) => !used.has(name)
+        );
+        return { activeTools: remaining };
       },
+      // Workers AI defaults to 256 output tokens, which cuts off longer
+      // answers such as a full 8-week build list.
+      maxOutputTokens: 1024,
       stopWhen: stepCountIs(10),
       abortSignal: options?.abortSignal
     });

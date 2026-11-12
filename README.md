@@ -1,4 +1,48 @@
-# Agent Starter
+# RackReady
+
+> The full RackReady README is written in the final build step. Until then, the original agents-starter README follows the Model Notes below.
+
+## Model Notes
+
+RackReady runs on Llama 3.3 70B on Workers AI (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`), as the brief requires. Tool calling did not work reliably out of the box. Some problems came from the platform and some from the model itself, and each one has its own guardrail.
+
+### What failed
+
+| # | Symptom | Source |
+|---|---|---|
+| 1 | Every word of a reply appeared twice ("TheThe Rack RackReadyReady"). | Platform: each streamed packet carries the text in two fields (`response` and `choices[0].delta.content`), and `workers-ai-provider` 3.3.1 emits both. |
+| 2 | Tool inputs arrived glued together (`{"weeks":8}{"weeks": 8}`) and were rejected. | Platform: same cause. Tool calls also arrive in two fields (`tool_calls` and `choices[0].delta.tool_calls`). |
+| 3 | A number in a reply doubled ("totaling19 19 racks"). | Platform: the native copy turned the text `" 19"` into the number `19`, so the first dedupe filter missed it. |
+| 4 | Tool calls failed with `"weeks": "8"` (text instead of a number). | Model: Llama 3.3 sometimes sends numbers as text. |
+| 5 | Llama called `getBuildPlan` 10 times with the same input and never answered. | Model: it repeats tool calls even after getting a correct result. |
+| 6 | After the once-per-tool rule hid every tool, the request failed: "`tools` must not be an empty array". | Platform: Workers AI rejects an empty tool list. |
+| 7 | Answers would cut off around 190 words. | Platform default: Workers AI caps output at 256 tokens unless told otherwise. |
+
+### How we confirmed the cause
+
+- **Raw packets.** We logged the packets coming from Workers AI before the connector processed them. The same text was present in both fields (failures 1 to 3).
+- **Debug view.** The chat's debug mode showed the exact tool input Llama produced (failures 2 and 4).
+- **A log line inside the tool.** It never fired on the failing calls, so the failure happened before our code ran, when the input was checked.
+- **The request sent to the model.** The server error log for failure 6 printed the full request. It contained the correct tool result as a `tool` message, so Llama had the data and still asked again (failure 5).
+- **Re-running the same question** after each fix, until it produced one tool call and a correct answer.
+
+### Guardrails
+
+| Guardrail | Where | What it does |
+|---|---|---|
+| Stream filter | `src/dedupe-stream.ts` | When a packet carries the same text or tool call in both fields, keeps the OpenAI-style copy and drops the native one. Packets with a single copy pass through untouched, so the filter does nothing if the platform is fixed. |
+| Empty tool list removal | `src/dedupe-stream.ts` | Leaves `tools` out of the request when the list is empty, instead of sending `[]`. |
+| Input coercion | `src/server.ts` (`z.coerce`) | Accepts `"8"` as `8` in tool inputs. |
+| Once-per-tool rule | `src/server.ts` (`prepareStep`) | Before each model step, hides the tools already called for the current question. Llama can call a different tool or answer, but cannot repeat one. |
+| Step cap | `src/server.ts` (`stepCountIs(10)`) | A backstop that ends any turn after 10 model steps. |
+| Output limit | `src/server.ts` (`maxOutputTokens: 1024`) | Raises the 256-token default so longer answers are not cut off. |
+| Prompt rules | `src/server.ts` (system prompt) | Never calculate, only repeat numbers a tool returned, and only call a tool when the question needs data. |
+
+**Known limits:** the once-per-tool rule means one question cannot call the same tool twice (for example, readiness for 3 weeks and then for 6). In early testing with a placeholder tool, Llama also called a tool on a simple greeting. The prompt rule reduced this but did not eliminate it.
+
+---
+
+# Agent Starter (original template README)
 
 ![npm i agents command](./npm-agents-banner.svg)
 

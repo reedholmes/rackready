@@ -98,3 +98,27 @@ yeah saw the doubling also
 ```
 Filter the stream
 ```
+
+---
+
+## Prompt 8 (2026-11-11 19:09 ET)
+
+```
+next
+```
+
+---
+
+## Prompt 9 (2026-11-11 19:22 ET)
+
+```
+Add the guardrails
+```
+
+---
+
+## Prompt 10 (2026-11-11 19:25 ET)
+
+```
+add a short Model Notes section to the README. what failed, how you confirmed it was the model, and what each guardrail does.
+```
