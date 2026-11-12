@@ -39,8 +39,7 @@ Rules:
 - If no tool can answer a question about builds, inventory, or shortages, say you do not have that data yet. Do not guess.
 - Lead with the answer: what is at risk, by how much, and when it recovers.
 - When supply is constrained, present the options and ask the user to choose. Do not choose for them.
-- If asked where the data comes from, say clearly that all data in this demo is mock data.
-- Logging decisions: after logDecision returns saved, confirm in one sentence that the decision was saved. If the user rejected logDecision, say in one sentence that the decision was not saved, and do not ask to log it again. Never say that a tool or function is unavailable.`;
+- If asked where the data comes from, say clearly that all data in this demo is mock data.`;
 
 export class ChatAgent extends AIChatAgent<Env> {
   maxPersistedMessages = 100;
@@ -195,6 +194,20 @@ export class ChatAgent extends AIChatAgent<Env> {
       .filter(isToolUIPart);
     const usedThisQuestion = toolPartsThisQuestion.map((part) => getToolName(part));
 
+    // Guardrail 5: only offer logDecision when the user's message asks to
+    // log, record, or save something. In testing, "What did we decide last
+    // time?" made Llama 3.3 ask to log a decision nobody asked to save.
+    const lastUserText =
+      lastUser >= 0
+        ? this.messages[lastUser].parts
+            .map((p) => (p.type === "text" ? p.text : ""))
+            .join(" ")
+        : "";
+    const askedToLog =
+      /\b(log|logged|logging|record|recorded|save|saved|note down|write down)\b/i.test(
+        lastUserText
+      );
+
     // Guardrail 3: after the user clicks Reject, reply with fixed text and do
     // not call the model. In testing, Llama 3.3 kept trying to log the
     // rejected decision again (as a new approval request, or printed as text).
@@ -248,7 +261,8 @@ export class ChatAgent extends AIChatAgent<Env> {
           steps.flatMap((step) => step.toolCalls.map((call) => call.toolName))
         );
         const remaining = (Object.keys(tools) as (keyof typeof tools)[]).filter(
-          (name) => !used.has(name)
+          (name) =>
+            !used.has(name) && (name !== "logDecision" || askedToLog)
         );
         return { activeTools: remaining };
       },

@@ -21,7 +21,8 @@ RackReady runs on Llama 3.3 70B on Workers AI (`@cf/meta/llama-3.3-70b-instruct-
 | 9 | After **Approve** or **Reject**, Llama replied that the tool "is not provided". | Guardrail side effect: the tool it had just used was hidden from it. |
 | 10 | Allocation answers skipped each option's effect on the builds when the effect was a separate field. | Model: it reliably repeats some fields and skips others. |
 | 11 | Occasionally Llama calls a tool it was not offered (a repeat of `checkMaterialReadiness`, or an invented `getDecision`). The chat showed a red Error card, but the final answer was still correct. | Model. |
-| 12 | Asked "What did we decide last time?", Llama read the log and then asked to log a decision again. Nothing was saved (the approval card held), but the question was never answered. | Model: it calls tools the question does not need. Not yet guarded. |
+| 12 | Asked "What did we decide last time?", Llama read the log and then asked to log a decision again. Nothing was saved (the approval card held), but the question was never answered. | Model: it calls tools the question does not need. |
+| 13 | Asked which builds were at risk, Llama replied only "The decision was saved." although no decision tool ran. | Model, triggered by a prompt rule about confirming saved decisions, which it applied out of context. The rule was removed; the guardrails below cover Approve and Reject without it. |
 
 ### How we confirmed the cause
 
@@ -39,6 +40,7 @@ RackReady runs on Llama 3.3 70B on Workers AI (`@cf/meta/llama-3.3-70b-instruct-
 | Empty tool list removal | `src/dedupe-stream.ts` | Leaves `tools` out of the request when the list is empty, instead of sending `[]`. |
 | Input coercion | `src/server.ts` (`z.coerce`) | Accepts `"8"` as `8` in tool inputs. |
 | Once-per-tool rule | `src/server.ts` (`prepareStep`) | Before each model step, hides the tools already called for the current question. Llama can call a different tool or answer, but cannot repeat one. Right after **Approve**, every tool stays visible but none can be called (`toolChoice: "none"`), so Llama answers in words. |
+| Save only when asked | `src/server.ts` | `logDecision` is offered to the model only when the user's message asks to log, record, or save something. |
 | Fixed reply on Reject | `src/server.ts` | When the user rejects an approval, the code replies "OK, the decision was not saved." without calling the model. |
 | Hide invalid tool calls | `src/hide-invalid-tool-calls.ts` | Holds each tool call's chat card until the AI library decides whether the call is valid. Invalid calls (tools Llama was not offered) are dropped from the chat and logged on the server; the model still sees the error and recovers. Covered by an automated test. |
 | Ready-made option text | `src/allocation.ts` | Each option's effect on the builds is written into the same sentence as the action, so Llama repeats it. |

@@ -154,3 +154,11 @@ move onto step 4 but keep an eye on the tool readiness call.
 ```
 Yes, hide them
 ```
+
+---
+
+## Prompt 15 (2026-11-11 21:45 ET)
+
+```
+yes, and bring back the 5 questions to this window
+```
