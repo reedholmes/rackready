@@ -84,7 +84,9 @@ export function createDedupeStream(): TransformStream<Uint8Array, Uint8Array> {
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? ""; // keep any partial line for the next chunk
       if (lines.length > 0) {
-        controller.enqueue(encoder.encode(lines.map(fixLine).join("\n") + "\n"));
+        controller.enqueue(
+          encoder.encode(lines.map(fixLine).join("\n") + "\n")
+        );
       }
     },
     flush(controller) {

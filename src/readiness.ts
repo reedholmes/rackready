@@ -150,7 +150,10 @@ export function checkMaterialReadiness(
   // Report only builds planned inside the requested horizon.
   const inHorizon = data.builds
     .filter((b) => b.week <= weeks)
-    .sort((a, b) => a.week - b.week || a.priority - b.priority || a.id.localeCompare(b.id));
+    .sort(
+      (a, b) =>
+        a.week - b.week || a.priority - b.priority || a.id.localeCompare(b.id)
+    );
 
   const builds: BuildReadiness[] = inHorizon.map((b) => {
     const shortages = firstCheck.get(b.id) ?? [];

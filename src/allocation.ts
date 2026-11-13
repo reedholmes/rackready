@@ -62,7 +62,8 @@ export type AllocationResult =
 export function resolveSite(input: string): Site | null {
   const s = input.trim().toLowerCase();
   for (const [code, name] of Object.entries(SITE_NAMES)) {
-    if (s === code.toLowerCase() || s === name.toLowerCase()) return code as Site;
+    if (s === code.toLowerCase() || s === name.toLowerCase())
+      return code as Site;
   }
   return null;
 }
@@ -80,7 +81,10 @@ export function resolveComponent(
   const words = s.split(/[^a-z0-9]+/).filter((w) => w.length > 2);
   const matches = codes.filter((c) => {
     const name = COMPONENT_NAMES[c].toLowerCase();
-    return words.length > 0 && words.every((w) => name.includes(w) || c.toLowerCase().includes(w));
+    return (
+      words.length > 0 &&
+      words.every((w) => name.includes(w) || c.toLowerCase().includes(w))
+    );
   });
   if (matches.length === 1) return matches[0];
   if (matches.length > 1) {
@@ -96,7 +100,8 @@ function shortComponents(data: PlanningData, site: Site) {
   const result = checkMaterialReadiness(data, 8);
   const set = new Set<string>();
   for (const b of result.builds) {
-    if (b.site === SITE_NAMES[site]) for (const s of b.shortages) set.add(s.component);
+    if (b.site === SITE_NAMES[site])
+      for (const s of b.shortages) set.add(s.component);
   }
   return set;
 }
@@ -150,7 +155,8 @@ export function proposeAllocation(
   // Baseline: the plan as it stands (serve by priority).
   const baseline = checkMaterialReadiness(data, 8);
   const shortBuilds = baseline.builds.filter(
-    (b) => b.site === siteName && b.shortages.some((s) => s.component === component)
+    (b) =>
+      b.site === siteName && b.shortages.some((s) => s.component === component)
   );
   if (shortBuilds.length === 0) {
     return {
@@ -178,10 +184,13 @@ export function proposeAllocation(
 
   const outcomesIn = (scenario: PlanningData) => {
     const r = checkMaterialReadiness(scenario, 8);
-    return affectedIds.map((id) => outcomeOf(r.builds.find((b) => b.id === id)!));
+    return affectedIds.map((id) =>
+      outcomeOf(r.builds.find((b) => b.id === id)!)
+    );
   };
   const totalShort = shortBuilds.reduce(
-    (sum, b) => sum + b.shortages.find((s) => s.component === component)!.shortBy,
+    (sum, b) =>
+      sum + b.shortages.find((s) => s.component === component)!.shortBy,
     0
   );
 
@@ -194,7 +203,8 @@ export function proposeAllocation(
     name: "Serve builds by priority",
     action: `Keep the current plan. Higher-priority builds get the ${component} supply first; the rest wait for inbound supply. ${effectOf(priorityOutcomes)}`,
     outcomes: priorityOutcomes,
-    tradeoff: "No extra cost or effort, but lower-priority builds slip until supply lands."
+    tradeoff:
+      "No extra cost or effort, but lower-priority builds slip until supply lands."
   });
 
   // Option 2: transfer spare stock from the other site.
@@ -238,8 +248,8 @@ export function proposeAllocation(
         }
       ]
     };
-    const otherStillReady = checkMaterialReadiness(scenario, 8).builds
-      .filter((b) => b.site === otherName)
+    const otherStillReady = checkMaterialReadiness(scenario, 8)
+      .builds.filter((b) => b.site === otherName)
       .every((b) => b.status === "ready");
     const transferOutcomes = outcomesIn(scenario);
     options.push({
@@ -254,7 +264,10 @@ export function proposeAllocation(
   // Option 3: expedite the inbound order that fixes the shortage.
   const late = data.inbound
     .filter(
-      (p) => p.site === site && p.component === component && p.expected_week > firstWeek
+      (p) =>
+        p.site === site &&
+        p.component === component &&
+        p.expected_week > firstWeek
     )
     .sort((a, b) => a.expected_week - b.expected_week)[0];
   if (late) {
@@ -270,7 +283,8 @@ export function proposeAllocation(
       name: `Expedite ${late.id} from ${late.supplier}`,
       action: `Ask ${late.supplier} to pull ${late.id} (${late.quantity} x ${component}) in from week ${late.expected_week} to week ${firstWeek}. ${effectOf(expediteOutcomes)}`,
       outcomes: expediteOutcomes,
-      tradeoff: "Depends on the supplier agreeing; expedite fees are likely and not guaranteed to land on time."
+      tradeoff:
+        "Depends on the supplier agreeing; expedite fees are likely and not guaranteed to land on time."
     });
   }
 
@@ -279,7 +293,9 @@ export function proposeAllocation(
       .map((b) => b.id)
       .join(", ")} short ${totalShort} in total. Options: ` +
     options
-      .map((o) => `(${o.option}) ${o.name}. ${o.action} Tradeoff: ${o.tradeoff}`)
+      .map(
+        (o) => `(${o.option}) ${o.name}. ${o.action} Tradeoff: ${o.tradeoff}`
+      )
       .join(" ");
 
   return {

@@ -22,14 +22,37 @@ async function run(chunks: UIMessageChunk[]) {
 describe("hideInvalidToolCalls", () => {
   it("passes a valid call through and drops an invalid one entirely", async () => {
     const out = await run([
-      { type: "tool-input-start", toolCallId: "good", toolName: "listDecisions" },
+      {
+        type: "tool-input-start",
+        toolCallId: "good",
+        toolName: "listDecisions"
+      },
       { type: "tool-input-delta", toolCallId: "good", inputTextDelta: "{}" },
-      { type: "tool-input-available", toolCallId: "good", toolName: "listDecisions", input: {} },
-      { type: "tool-output-available", toolCallId: "good", output: { decisionCount: 1 } },
+      {
+        type: "tool-input-available",
+        toolCallId: "good",
+        toolName: "listDecisions",
+        input: {}
+      },
+      {
+        type: "tool-output-available",
+        toolCallId: "good",
+        output: { decisionCount: 1 }
+      },
       { type: "tool-input-start", toolCallId: "bad", toolName: "getDecision" },
       { type: "tool-input-delta", toolCallId: "bad", inputTextDelta: "{}" },
-      { type: "tool-input-error", toolCallId: "bad", toolName: "getDecision", input: {}, errorText: "An error occurred." },
-      { type: "tool-output-error", toolCallId: "bad", errorText: "An error occurred." },
+      {
+        type: "tool-input-error",
+        toolCallId: "bad",
+        toolName: "getDecision",
+        input: {},
+        errorText: "An error occurred."
+      },
+      {
+        type: "tool-output-error",
+        toolCallId: "bad",
+        errorText: "An error occurred."
+      },
       { type: "text-start", id: "t" },
       { type: "text-delta", id: "t", delta: "Last time we decided..." },
       { type: "text-end", id: "t" }
@@ -44,9 +67,18 @@ describe("hideInvalidToolCalls", () => {
   it("keeps the order of a valid call's chunks", async () => {
     const out = await run([
       { type: "tool-input-start", toolCallId: "a", toolName: "getBuildPlan" },
-      { type: "tool-input-delta", toolCallId: "a", inputTextDelta: '{"weeks":' },
+      {
+        type: "tool-input-delta",
+        toolCallId: "a",
+        inputTextDelta: '{"weeks":'
+      },
       { type: "tool-input-delta", toolCallId: "a", inputTextDelta: "8}" },
-      { type: "tool-input-available", toolCallId: "a", toolName: "getBuildPlan", input: { weeks: 8 } }
+      {
+        type: "tool-input-available",
+        toolCallId: "a",
+        toolName: "getBuildPlan",
+        input: { weeks: 8 }
+      }
     ]);
     expect(out.map((c) => c.type)).toEqual([
       "tool-input-start",

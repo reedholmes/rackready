@@ -294,7 +294,6 @@ function Chat() {
     )
   });
 
-
   const {
     messages,
     sendMessage,

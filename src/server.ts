@@ -58,7 +58,11 @@ export class ChatAgent extends AIChatAgent<Env> {
     // to be UTC on Cloudflare; in local dev it followed the PC's time zone.
     // Cron schedules are idempotent in the Agents SDK, so calling this on
     // every start keeps exactly one schedule.
-    const weekly = await this.schedule(REVIEW_CRON, "weeklyReview", "scheduled");
+    const weekly = await this.schedule(
+      REVIEW_CRON,
+      "weeklyReview",
+      "scheduled"
+    );
     const reviewSchedules = (await this.listSchedules()).filter(
       (s) => s.callback === "weeklyReview"
     ).length;
@@ -176,7 +180,9 @@ export class ChatAgent extends AIChatAgent<Env> {
             .describe(
               "Component code such as SW-TOR-48, or its name such as top-of-rack switch"
             ),
-          site: z.string().describe("Integrator site: Texas (TX) or Malaysia (MY)")
+          site: z
+            .string()
+            .describe("Integrator site: Texas (TX) or Malaysia (MY)")
         }),
         execute: async ({ component, site }) => {
           try {
@@ -198,11 +204,14 @@ export class ChatAgent extends AIChatAgent<Env> {
         inputSchema: z.object({
           summary: z
             .string()
-            .describe("One or two sentences describing the decision, in the user's words")
+            .describe(
+              "One or two sentences describing the decision, in the user's words"
+            )
         }),
         // Human in the loop: the chat shows Approve / Reject first.
         needsApproval: true,
-        execute: async ({ summary }) => logDecision(this.sql.bind(this), summary)
+        execute: async ({ summary }) =>
+          logDecision(this.sql.bind(this), summary)
       }),
 
       listDecisions: tool({
@@ -221,7 +230,9 @@ export class ChatAgent extends AIChatAgent<Env> {
       .slice(lastUser + 1)
       .flatMap((m) => m.parts)
       .filter(isToolUIPart);
-    const usedThisQuestion = toolPartsThisQuestion.map((part) => getToolName(part));
+    const usedThisQuestion = toolPartsThisQuestion.map((part) =>
+      getToolName(part)
+    );
 
     // Guardrail 5: only offer logDecision when the user's message asks to
     // log, record, or save something. In testing, "What did we decide last
@@ -312,8 +323,7 @@ export class ChatAgent extends AIChatAgent<Env> {
         // "I do not have data" (2 of 10 rounds on the first demo question).
         if (used.has("checkMaterialReadiness")) used.add("getBuildPlan");
         const remaining = (Object.keys(tools) as (keyof typeof tools)[]).filter(
-          (name) =>
-            !used.has(name) && (name !== "logDecision" || askedToLog)
+          (name) => !used.has(name) && (name !== "logDecision" || askedToLog)
         );
         return { activeTools: remaining };
       },

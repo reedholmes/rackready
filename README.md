@@ -24,12 +24,12 @@ The demo has a single shared agent, so every visitor sees the same chat history 
 
 ## How the four required components are met
 
-| Requirement | How RackReady meets it |
-|---|---|
-| **LLM** | Llama 3.3 70B on Workers AI (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`), called through the Workers AI binding. The model decides which tool to call and explains the result. It never does arithmetic: every quantity, total, and recovery week is computed in TypeScript and returned by a tool. Llama 3.3 needed several guardrails to call tools reliably; see [Model Notes](#model-notes). |
-| **Workflow / coordination** | The agent is an Agents SDK `AIChatAgent`, which runs as a Durable Object. Its built-in scheduler runs the shortage review every Monday at 13:00 UTC (`this.schedule("0 13 * * 1", "weeklyReview")`). The **Run review now** button calls the same method through a `@callable()` RPC. |
-| **User input via chat** | The agents-starter chat UI, kept as is apart from the RackReady suggestion buttons and the Run review now button. Human-in-the-loop approval for logging decisions uses the AI SDK's `needsApproval` and the starter's Approve / Reject cards. |
-| **Memory / state** | Everything lives in the Durable Object's SQLite storage: chat history (persisted automatically by `AIChatAgent`), the mock planning tables, the decisions log, and a table of review runs. Chat history and decisions survive page refreshes. |
+| Requirement                 | How RackReady meets it                                                                                                                                                                                                                                                                                                                                                                           |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **LLM**                     | Llama 3.3 70B on Workers AI (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`), called through the Workers AI binding. The model decides which tool to call and explains the result. It never does arithmetic: every quantity, total, and recovery week is computed in TypeScript and returned by a tool. Llama 3.3 needed several guardrails to call tools reliably; see [Model Notes](#model-notes). |
+| **Workflow / coordination** | The agent is an Agents SDK `AIChatAgent`, which runs as a Durable Object. Its built-in scheduler runs the shortage review every Monday at 13:00 UTC (`this.schedule("0 13 * * 1", "weeklyReview")`). The **Run review now** button calls the same method through a `@callable()` RPC.                                                                                                            |
+| **User input via chat**     | The agents-starter chat UI, kept as is apart from the RackReady suggestion buttons and the Run review now button. Human-in-the-loop approval for logging decisions uses the AI SDK's `needsApproval` and the starter's Approve / Reject cards.                                                                                                                                                   |
+| **Memory / state**          | Everything lives in the Durable Object's SQLite storage: chat history (persisted automatically by `AIChatAgent`), the mock planning tables, the decisions log, and a table of review runs. Chat history and decisions survive page refreshes.                                                                                                                                                    |
 
 ## How it works
 
@@ -44,29 +44,29 @@ Browser (React chat UI)  <-- WebSocket -->  ChatAgent (Durable Object on Cloudfl
 
 **Tools the model can call**
 
-| Tool | What it does |
-|---|---|
-| `getBuildPlan(weeks)` | Planned builds for the horizon, with totals computed in code. |
-| `checkMaterialReadiness(weeks)` | Walks the plan week by week: inbound orders land at the start of their week, builds compete for stock by priority, ready builds consume it, short builds wait and are retried until supply recovers. Returns each build as ready or short with the component, quantity short, and recovery week, plus a summary sentence written in code. |
-| `proposeAllocation(component, site)` | Builds two or three options as "what if" scenarios (serve by priority, transfer spare stock from the other site, expedite the late purchase order), reruns the readiness calculation for each, and returns the effect on every affected build and the tradeoff. |
-| `logDecision(summary)` | Saves a decision to the log after the user clicks **Approve**. |
-| `listDecisions()` | Returns past decisions, newest first. |
+| Tool                                 | What it does                                                                                                                                                                                                                                                                                                                              |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getBuildPlan(weeks)`                | Planned builds for the horizon, with totals computed in code.                                                                                                                                                                                                                                                                             |
+| `checkMaterialReadiness(weeks)`      | Walks the plan week by week: inbound orders land at the start of their week, builds compete for stock by priority, ready builds consume it, short builds wait and are retried until supply recovers. Returns each build as ready or short with the component, quantity short, and recovery week, plus a summary sentence written in code. |
+| `proposeAllocation(component, site)` | Builds two or three options as "what if" scenarios (serve by priority, transfer spare stock from the other site, expedite the late purchase order), reruns the readiness calculation for each, and returns the effect on every affected build and the tradeoff.                                                                           |
+| `logDecision(summary)`               | Saves a decision to the log after the user clicks **Approve**.                                                                                                                                                                                                                                                                            |
+| `listDecisions()`                    | Returns past decisions, newest first.                                                                                                                                                                                                                                                                                                     |
 
 **Weekly review.** `weeklyReview` runs `checkMaterialReadiness` for 6 weeks, stores the result, and posts the code-written summary into the chat history without calling the model, so the next time the chat is opened it leads with the review.
 
 **Main files**
 
-| File | Purpose |
-|---|---|
-| `src/server.ts` | The agent: system prompt, tools, guardrails, weekly review, run-now action. |
-| `src/data.ts` | The mock data and the story it is seeded to tell. |
-| `src/db.ts` | Table setup, one-time seeding, and SQL helpers. |
-| `src/readiness.ts` | The readiness calculation (no database or AI, so it can be tested on its own). |
-| `src/allocation.ts` | The allocation options. |
-| `src/dedupe-stream.ts`, `src/hide-invalid-tool-calls.ts` | Workarounds described in Model Notes. |
-| `src/app.tsx` | The chat UI from the starter, with small RackReady changes. |
-| `src/*.test.ts` | Automated tests for the code. |
-| `evals/` | Repeatability eval: runner, grader, grader tests, and results. |
+| File                                                     | Purpose                                                                        |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `src/server.ts`                                          | The agent: system prompt, tools, guardrails, weekly review, run-now action.    |
+| `src/data.ts`                                            | The mock data and the story it is seeded to tell.                              |
+| `src/db.ts`                                              | Table setup, one-time seeding, and SQL helpers.                                |
+| `src/readiness.ts`                                       | The readiness calculation (no database or AI, so it can be tested on its own). |
+| `src/allocation.ts`                                      | The allocation options.                                                        |
+| `src/dedupe-stream.ts`, `src/hide-invalid-tool-calls.ts` | Workarounds described in Model Notes.                                          |
+| `src/app.tsx`                                            | The chat UI from the starter, with small RackReady changes.                    |
+| `src/*.test.ts`                                          | Automated tests for the code.                                                  |
+| `evals/`                                                 | Repeatability eval: runner, grader, grader tests, and results.                 |
 
 ## What is mock
 
@@ -124,14 +124,14 @@ Note: in local development the weekly cron schedule followed the computer's time
 - **No false save claim:** the reply may say "saved" only if `logDecision` actually saved.
 - **Right tool, no Error cards, and the key facts** (B-06, short 4, recovers week 5; all three options; the approval card; recalling the decision).
 
-| Question | First run (2026-11-12, 10 rounds) | After the Q1 fix (2026-11-13, 5 rounds) |
-|---|---|---|
-| Q1 At risk in six weeks? | 8/10 | 5/5 |
-| Q2 Week 3 shortage and recovery? | 9/10 | 5/5 |
-| Q3 Options? | 10/10 | 4/5 |
-| Q4 Log the decision (with Approve) | 10/10 | 5/5 |
-| Q5 What did we decide? | 10/10 | 5/5 |
-| **All answers** | **47/50** | **24/25** |
+| Question                           | First run (2026-11-12, 10 rounds) | After the Q1 fix (2026-11-13, 5 rounds) |
+| ---------------------------------- | --------------------------------- | --------------------------------------- |
+| Q1 At risk in six weeks?           | 8/10                              | 5/5                                     |
+| Q2 Week 3 shortage and recovery?   | 9/10                              | 5/5                                     |
+| Q3 Options?                        | 10/10                             | 4/5                                     |
+| Q4 Log the decision (with Approve) | 10/10                             | 5/5                                     |
+| Q5 What did we decide?             | 10/10                             | 5/5                                     |
+| **All answers**                    | **47/50**                         | **24/25**                               |
 
 No answer in either run contained an untraceable number, a false save claim, or an Error card.
 
@@ -173,22 +173,22 @@ RackReady runs on Llama 3.3 70B on Workers AI (`@cf/meta/llama-3.3-70b-instruct-
 
 ### What failed
 
-| # | Symptom | Source |
-|---|---|---|
-| 1 | Every word of a reply appeared twice ("TheThe Rack RackReadyReady"). | Platform: each streamed packet carries the text in two fields (`response` and `choices[0].delta.content`), and `workers-ai-provider` 3.3.1 emits both. |
-| 2 | Tool inputs arrived glued together (`{"weeks":8}{"weeks": 8}`) and were rejected. | Platform: same cause. Tool calls also arrive in two fields (`tool_calls` and `choices[0].delta.tool_calls`). |
-| 3 | A number in a reply doubled ("totaling19 19 racks"). | Platform: the native copy turned the text `" 19"` into the number `19`, so the first dedupe filter missed it. |
-| 4 | Tool calls failed with `"weeks": "8"` (text instead of a number). | Model: Llama 3.3 sometimes sends numbers as text. |
-| 5 | Llama called `getBuildPlan` 10 times with the same input and never answered. | Model: it repeats tool calls even after getting a correct result. |
-| 6 | After the once-per-tool rule hid every tool, the request failed: "`tools` must not be an empty array". | Platform: Workers AI rejects an empty tool list. |
-| 7 | Answers would cut off around 190 words. | Platform default: Workers AI caps output at 256 tokens unless told otherwise. |
-| 8 | After the user clicked **Reject** on a decision, Llama asked to log the same decision again, then printed the tool call as plain text. | Model: it retries a rejected action. |
-| 9 | After **Approve** or **Reject**, Llama replied that the tool "is not provided". | Guardrail side effect: the tool it had just used was hidden from it. |
-| 10 | Allocation answers skipped each option's effect on the builds when the effect was a separate field. | Model: it reliably repeats some fields and skips others. |
-| 11 | Occasionally Llama calls a tool it was not offered (a repeat of `checkMaterialReadiness`, or an invented `getDecision`). The chat showed a red Error card, but the final answer was still correct. | Model. |
-| 12 | Asked "What did we decide last time?", Llama read the log and then asked to log a decision again. Nothing was saved (the approval card held), but the question was never answered. | Model: it calls tools the question does not need. |
-| 13 | Asked which builds were at risk, Llama replied only "The decision was saved." although no decision tool ran. | Model, triggered by a prompt rule about confirming saved decisions, which it applied out of context. The rule was removed; the guardrails below cover Approve and Reject without it. |
-| 14 | After the options question, the user replied "1" and Llama said "This decision has been saved." although no decision tool ran (it was not offered, because "1" does not ask to save). | Model: it claims an action it did not take. |
+| #   | Symptom                                                                                                                                                                                            | Source                                                                                                                                                                               |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Every word of a reply appeared twice ("TheThe Rack RackReadyReady").                                                                                                                               | Platform: each streamed packet carries the text in two fields (`response` and `choices[0].delta.content`), and `workers-ai-provider` 3.3.1 emits both.                               |
+| 2   | Tool inputs arrived glued together (`{"weeks":8}{"weeks": 8}`) and were rejected.                                                                                                                  | Platform: same cause. Tool calls also arrive in two fields (`tool_calls` and `choices[0].delta.tool_calls`).                                                                         |
+| 3   | A number in a reply doubled ("totaling19 19 racks").                                                                                                                                               | Platform: the native copy turned the text `" 19"` into the number `19`, so the first dedupe filter missed it.                                                                        |
+| 4   | Tool calls failed with `"weeks": "8"` (text instead of a number).                                                                                                                                  | Model: Llama 3.3 sometimes sends numbers as text.                                                                                                                                    |
+| 5   | Llama called `getBuildPlan` 10 times with the same input and never answered.                                                                                                                       | Model: it repeats tool calls even after getting a correct result.                                                                                                                    |
+| 6   | After the once-per-tool rule hid every tool, the request failed: "`tools` must not be an empty array".                                                                                             | Platform: Workers AI rejects an empty tool list.                                                                                                                                     |
+| 7   | Answers would cut off around 190 words.                                                                                                                                                            | Platform default: Workers AI caps output at 256 tokens unless told otherwise.                                                                                                        |
+| 8   | After the user clicked **Reject** on a decision, Llama asked to log the same decision again, then printed the tool call as plain text.                                                             | Model: it retries a rejected action.                                                                                                                                                 |
+| 9   | After **Approve** or **Reject**, Llama replied that the tool "is not provided".                                                                                                                    | Guardrail side effect: the tool it had just used was hidden from it.                                                                                                                 |
+| 10  | Allocation answers skipped each option's effect on the builds when the effect was a separate field.                                                                                                | Model: it reliably repeats some fields and skips others.                                                                                                                             |
+| 11  | Occasionally Llama calls a tool it was not offered (a repeat of `checkMaterialReadiness`, or an invented `getDecision`). The chat showed a red Error card, but the final answer was still correct. | Model.                                                                                                                                                                               |
+| 12  | Asked "What did we decide last time?", Llama read the log and then asked to log a decision again. Nothing was saved (the approval card held), but the question was never answered.                 | Model: it calls tools the question does not need.                                                                                                                                    |
+| 13  | Asked which builds were at risk, Llama replied only "The decision was saved." although no decision tool ran.                                                                                       | Model, triggered by a prompt rule about confirming saved decisions, which it applied out of context. The rule was removed; the guardrails below cover Approve and Reject without it. |
+| 14  | After the options question, the user replied "1" and Llama said "This decision has been saved." although no decision tool ran (it was not offered, because "1" does not ask to save).              | Model: it claims an action it did not take.                                                                                                                                          |
 
 ### How we confirmed the cause
 
@@ -200,19 +200,19 @@ RackReady runs on Llama 3.3 70B on Workers AI (`@cf/meta/llama-3.3-70b-instruct-
 
 ### Guardrails
 
-| Guardrail | Where | What it does |
-|---|---|---|
-| Stream filter | `src/dedupe-stream.ts` | When a packet carries the same text or tool call in both fields, keeps the OpenAI-style copy and drops the native one. Packets with a single copy pass through untouched, so the filter does nothing if the platform is fixed. |
-| Empty tool list removal | `src/dedupe-stream.ts` | Leaves `tools` out of the request when the list is empty, instead of sending `[]`. |
-| Input coercion | `src/server.ts` (`z.coerce`) | Accepts `"8"` as `8` in tool inputs. |
-| Once-per-tool rule | `src/server.ts` (`prepareStep`) | Before each model step, hides the tools already called for the current question. Llama can call a different tool or answer, but cannot repeat one. Right after **Approve**, every tool stays visible but none can be called (`toolChoice: "none"`), so Llama answers in words. |
-| Save only when asked | `src/server.ts` | `logDecision` is offered to the model only when the user's message asks to log, record, or save something, or answers the allocation options question. Either way the Approve/Reject card still decides. |
-| Fixed reply on Reject | `src/server.ts` | When the user rejects an approval, the code replies "OK, the decision was not saved." without calling the model. |
-| Hide invalid tool calls | `src/hide-invalid-tool-calls.ts` | Holds each tool call's chat card until the AI library decides whether the call is valid. Invalid calls (tools Llama was not offered) are dropped from the chat and logged on the server; the model still sees the error and recovers. Covered by an automated test. |
-| Ready-made option text | `src/allocation.ts` | Each option's effect on the builds is written into the same sentence as the action, so Llama repeats it. |
-| Step cap | `src/server.ts` (`stepCountIs(10)`) | A backstop that ends any turn after 10 model steps. |
-| Output limit | `src/server.ts` (`maxOutputTokens: 1024`) | Raises the 256-token default so longer answers are not cut off. |
-| Prompt rules | `src/server.ts` (system prompt) | Never calculate, only repeat numbers a tool returned, and only call a tool when the question needs data. |
+| Guardrail               | Where                                     | What it does                                                                                                                                                                                                                                                                   |
+| ----------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Stream filter           | `src/dedupe-stream.ts`                    | When a packet carries the same text or tool call in both fields, keeps the OpenAI-style copy and drops the native one. Packets with a single copy pass through untouched, so the filter does nothing if the platform is fixed.                                                 |
+| Empty tool list removal | `src/dedupe-stream.ts`                    | Leaves `tools` out of the request when the list is empty, instead of sending `[]`.                                                                                                                                                                                             |
+| Input coercion          | `src/server.ts` (`z.coerce`)              | Accepts `"8"` as `8` in tool inputs.                                                                                                                                                                                                                                           |
+| Once-per-tool rule      | `src/server.ts` (`prepareStep`)           | Before each model step, hides the tools already called for the current question. Llama can call a different tool or answer, but cannot repeat one. Right after **Approve**, every tool stays visible but none can be called (`toolChoice: "none"`), so Llama answers in words. |
+| Save only when asked    | `src/server.ts`                           | `logDecision` is offered to the model only when the user's message asks to log, record, or save something, or answers the allocation options question. Either way the Approve/Reject card still decides.                                                                       |
+| Fixed reply on Reject   | `src/server.ts`                           | When the user rejects an approval, the code replies "OK, the decision was not saved." without calling the model.                                                                                                                                                               |
+| Hide invalid tool calls | `src/hide-invalid-tool-calls.ts`          | Holds each tool call's chat card until the AI library decides whether the call is valid. Invalid calls (tools Llama was not offered) are dropped from the chat and logged on the server; the model still sees the error and recovers. Covered by an automated test.            |
+| Ready-made option text  | `src/allocation.ts`                       | Each option's effect on the builds is written into the same sentence as the action, so Llama repeats it.                                                                                                                                                                       |
+| Step cap                | `src/server.ts` (`stepCountIs(10)`)       | A backstop that ends any turn after 10 model steps.                                                                                                                                                                                                                            |
+| Output limit            | `src/server.ts` (`maxOutputTokens: 1024`) | Raises the 256-token default so longer answers are not cut off.                                                                                                                                                                                                                |
+| Prompt rules            | `src/server.ts` (system prompt)           | Never calculate, only repeat numbers a tool returned, and only call a tool when the question needs data.                                                                                                                                                                       |
 
 **Known limits:** the once-per-tool rule means one question cannot call the same tool twice (for example, readiness for 3 weeks and then for 6). In early testing with a placeholder tool, Llama also called a tool on a simple greeting. The prompt rule reduced this but did not eliminate it.
 

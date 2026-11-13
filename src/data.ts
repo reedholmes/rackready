@@ -63,18 +63,114 @@ export interface InboundRow {
 }
 
 export const SEED_BUILDS: Build[] = [
-  { id: "B-01", week: 1, site: "TX", rack_type: "compute", quantity: 2, region: "US-East", priority: 1 },
-  { id: "B-02", week: 1, site: "MY", rack_type: "network", quantity: 1, region: "APAC-Singapore", priority: 2 },
-  { id: "B-03", week: 2, site: "TX", rack_type: "compute", quantity: 2, region: "US-West", priority: 2 },
-  { id: "B-04", week: 2, site: "MY", rack_type: "compute", quantity: 2, region: "APAC-Tokyo", priority: 1 },
-  { id: "B-05", week: 3, site: "TX", rack_type: "compute", quantity: 1, region: "US-East", priority: 1 },
-  { id: "B-06", week: 3, site: "TX", rack_type: "compute", quantity: 2, region: "US-Central", priority: 2 },
-  { id: "B-07", week: 3, site: "MY", rack_type: "compute", quantity: 1, region: "APAC-Sydney", priority: 3 },
-  { id: "B-08", week: 4, site: "TX", rack_type: "network", quantity: 1, region: "US-East", priority: 1 },
-  { id: "B-09", week: 5, site: "TX", rack_type: "compute", quantity: 2, region: "US-West", priority: 2 },
-  { id: "B-10", week: 6, site: "MY", rack_type: "compute", quantity: 2, region: "APAC-Singapore", priority: 2 },
-  { id: "B-11", week: 7, site: "TX", rack_type: "compute", quantity: 2, region: "US-East", priority: 1 },
-  { id: "B-12", week: 8, site: "MY", rack_type: "network", quantity: 1, region: "APAC-Tokyo", priority: 3 }
+  {
+    id: "B-01",
+    week: 1,
+    site: "TX",
+    rack_type: "compute",
+    quantity: 2,
+    region: "US-East",
+    priority: 1
+  },
+  {
+    id: "B-02",
+    week: 1,
+    site: "MY",
+    rack_type: "network",
+    quantity: 1,
+    region: "APAC-Singapore",
+    priority: 2
+  },
+  {
+    id: "B-03",
+    week: 2,
+    site: "TX",
+    rack_type: "compute",
+    quantity: 2,
+    region: "US-West",
+    priority: 2
+  },
+  {
+    id: "B-04",
+    week: 2,
+    site: "MY",
+    rack_type: "compute",
+    quantity: 2,
+    region: "APAC-Tokyo",
+    priority: 1
+  },
+  {
+    id: "B-05",
+    week: 3,
+    site: "TX",
+    rack_type: "compute",
+    quantity: 1,
+    region: "US-East",
+    priority: 1
+  },
+  {
+    id: "B-06",
+    week: 3,
+    site: "TX",
+    rack_type: "compute",
+    quantity: 2,
+    region: "US-Central",
+    priority: 2
+  },
+  {
+    id: "B-07",
+    week: 3,
+    site: "MY",
+    rack_type: "compute",
+    quantity: 1,
+    region: "APAC-Sydney",
+    priority: 3
+  },
+  {
+    id: "B-08",
+    week: 4,
+    site: "TX",
+    rack_type: "network",
+    quantity: 1,
+    region: "US-East",
+    priority: 1
+  },
+  {
+    id: "B-09",
+    week: 5,
+    site: "TX",
+    rack_type: "compute",
+    quantity: 2,
+    region: "US-West",
+    priority: 2
+  },
+  {
+    id: "B-10",
+    week: 6,
+    site: "MY",
+    rack_type: "compute",
+    quantity: 2,
+    region: "APAC-Singapore",
+    priority: 2
+  },
+  {
+    id: "B-11",
+    week: 7,
+    site: "TX",
+    rack_type: "compute",
+    quantity: 2,
+    region: "US-East",
+    priority: 1
+  },
+  {
+    id: "B-12",
+    week: 8,
+    site: "MY",
+    rack_type: "network",
+    quantity: 1,
+    region: "APAC-Tokyo",
+    priority: 3
+  }
 ];
 
 // Bill of materials: what one rack of each type needs.
@@ -104,9 +200,44 @@ export const SEED_INVENTORY: InventoryRow[] = [
 
 // Purchase orders in transit. Stock lands at the start of expected_week.
 export const SEED_INBOUND: InboundRow[] = [
-  { id: "PO-101", component: "SRV-C1", site: "TX", quantity: 120, expected_week: 4, supplier: "Orbis Systems" },
-  { id: "PO-102", component: "SW-TOR-48", site: "TX", quantity: 8, expected_week: 5, supplier: "Vela Networks" },
-  { id: "PO-103", component: "SW-TOR-48", site: "TX", quantity: 6, expected_week: 6, supplier: "Vela Networks" },
-  { id: "PO-104", component: "SW-SPN-32", site: "MY", quantity: 4, expected_week: 6, supplier: "Vela Networks" },
-  { id: "PO-105", component: "SRV-C1", site: "MY", quantity: 40, expected_week: 5, supplier: "Orbis Systems" }
+  {
+    id: "PO-101",
+    component: "SRV-C1",
+    site: "TX",
+    quantity: 120,
+    expected_week: 4,
+    supplier: "Orbis Systems"
+  },
+  {
+    id: "PO-102",
+    component: "SW-TOR-48",
+    site: "TX",
+    quantity: 8,
+    expected_week: 5,
+    supplier: "Vela Networks"
+  },
+  {
+    id: "PO-103",
+    component: "SW-TOR-48",
+    site: "TX",
+    quantity: 6,
+    expected_week: 6,
+    supplier: "Vela Networks"
+  },
+  {
+    id: "PO-104",
+    component: "SW-SPN-32",
+    site: "MY",
+    quantity: 4,
+    expected_week: 6,
+    supplier: "Vela Networks"
+  },
+  {
+    id: "PO-105",
+    component: "SRV-C1",
+    site: "MY",
+    quantity: 40,
+    expected_week: 5,
+    supplier: "Orbis Systems"
+  }
 ];

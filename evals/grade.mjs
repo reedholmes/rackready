@@ -4,13 +4,18 @@
  */
 
 // ── Reading a turn ─────────────────────────────────────────────────────
-export const isToolPart = (p) => typeof p.type === "string" && p.type.startsWith("tool-");
+export const isToolPart = (p) =>
+  typeof p.type === "string" && p.type.startsWith("tool-");
 export const toolName = (p) => p.type.slice("tool-".length);
 
 /** Everything the agent produced since the given user message. */
 export function turnAfter(messages, userText) {
   let i = messages.length - 1;
-  while (i >= 0 && !(messages[i].role === "user" && textOf(messages[i]) === userText)) i--;
+  while (
+    i >= 0 &&
+    !(messages[i].role === "user" && textOf(messages[i]) === userText)
+  )
+    i--;
   const after = messages.slice(i + 1);
   const parts = after.flatMap((m) => m.parts ?? []);
   return {
@@ -54,20 +59,32 @@ export function grade(q, turn, allToolOutputText, extra) {
   const names = turn.tools.map(toolName);
   const errorParts = turn.tools.filter((p) => p.state === "output-error");
   const savedOk = turn.tools.some(
-    (p) => toolName(p) === "logDecision" && p.state === "output-available" && p.output?.saved === true
+    (p) =>
+      toolName(p) === "logDecision" &&
+      p.state === "output-available" &&
+      p.output?.saved === true
   );
 
   add("answered", turn.text.length > 0, turn.text ? "" : "no text reply");
-  add("no error cards", errorParts.length === 0, errorParts.map(toolName).join(", "));
+  add(
+    "no error cards",
+    errorParts.length === 0,
+    errorParts.map(toolName).join(", ")
+  );
   const untraced = untracedNumbers(turn.text, allToolOutputText, q.text);
   add("numbers come from tools", untraced.length === 0, untraced.join(", "));
   add(
     "no false save claim",
-    !SAVE_CLAIM.test(turn.text) || savedOk || /not saved|wasn't saved|was not saved/i.test(turn.text),
-    SAVE_CLAIM.test(turn.text) && !savedOk ? `says "${turn.text.match(SAVE_CLAIM)[0]}" but nothing was saved` : ""
+    !SAVE_CLAIM.test(turn.text) ||
+      savedOk ||
+      /not saved|wasn't saved|was not saved/i.test(turn.text),
+    SAVE_CLAIM.test(turn.text) && !savedOk
+      ? `says "${turn.text.match(SAVE_CLAIM)[0]}" but nothing was saved`
+      : ""
   );
 
-  const need = (tool) => add(`called ${tool}`, names.includes(tool), names.join(", ") || "no tools");
+  const need = (tool) =>
+    add(`called ${tool}`, names.includes(tool), names.join(", ") || "no tools");
   const says = (label, re) => add(label, re.test(turn.text), "");
 
   switch (q.key) {
@@ -84,13 +101,20 @@ export function grade(q, turn, allToolOutputText, extra) {
       says("option: priority", /priority/i);
       says("option: transfer from Malaysia", /Malaysia/i);
       says("option: expedite PO-102", /PO-102|expedite/i);
-      says("asks the user to choose", /choose|prefer|which option|would you like/i);
+      says(
+        "asks the user to choose",
+        /choose|prefer|which option|would you like/i
+      );
       add("no save requested", !names.includes("logDecision"), "");
       break;
     case "Q4":
       add("approval card shown", extra.approvalShown, "");
       add("saved after Approve", savedOk, "");
-      add("one decision in the log", extra.decisionCount === 1, `log has ${extra.decisionCount}`);
+      add(
+        "one decision in the log",
+        extra.decisionCount === 1,
+        `log has ${extra.decisionCount}`
+      );
       break;
     case "Q5":
       need("listDecisions");

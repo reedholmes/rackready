@@ -33,7 +33,10 @@ const TURN_TIMEOUT_MS = 150_000;
 
 const QUESTIONS = [
   { key: "Q1", text: "Which rack builds are at risk in the next six weeks?" },
-  { key: "Q2", text: "What is short for the week 3 builds, and when does it recover?" },
+  {
+    key: "Q2",
+    text: "What is short for the week 3 builds, and when does it recover?"
+  },
   { key: "Q3", text: "What are my options for the switch shortage?" },
   { key: "Q4", text: "Log the decision to serve priority 1 builds first." },
   { key: "Q5", text: "What did we decide last time?", freshConnection: true }
@@ -63,7 +66,10 @@ async function settledMessages(name) {
 function connect(name) {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(`${WS_BASE}${agentPath(name)}`);
-    const timer = setTimeout(() => reject(new Error("WebSocket connect timeout")), 30_000);
+    const timer = setTimeout(
+      () => reject(new Error("WebSocket connect timeout")),
+      30_000
+    );
     ws.addEventListener("open", () => {
       clearTimeout(timer);
       resolve(ws);
@@ -160,11 +166,16 @@ async function runRound(round, runId) {
       const status = await ask(ws, name, q.text);
       let messages = await settledMessages(name);
       let turn = turnAfter(messages, q.text);
-      const extra = { approvalShown: false, decisionCount: 0, approvalSeconds: 0 };
+      const extra = {
+        approvalShown: false,
+        decisionCount: 0,
+        approvalSeconds: 0
+      };
 
       if (q.key === "Q4") {
         const card = turn.tools.find(
-          (p) => toolName(p) === "logDecision" && p.state === "approval-requested"
+          (p) =>
+            toolName(p) === "logDecision" && p.state === "approval-requested"
         );
         extra.approvalShown = Boolean(card);
         if (card) {
@@ -186,14 +197,27 @@ async function runRound(round, runId) {
         .join(" ");
 
       const graded = grade(q, turn, allToolOutputText, extra);
-      if (status.timedOut) graded.checks.push({ name: "finished in time", pass: false, detail: "timed out" });
-      if (status.error) graded.checks.push({ name: "no stream error", pass: false, detail: "stream error" });
+      if (status.timedOut)
+        graded.checks.push({
+          name: "finished in time",
+          pass: false,
+          detail: "timed out"
+        });
+      if (status.error)
+        graded.checks.push({
+          name: "no stream error",
+          pass: false,
+          detail: "stream error"
+        });
       graded.pass = graded.checks.every((c) => c.pass);
-      graded.seconds = Math.round((status.seconds + extra.approvalSeconds) * 10) / 10;
+      graded.seconds =
+        Math.round((status.seconds + extra.approvalSeconds) * 10) / 10;
       results.push({ round, question: q.key, ...graded });
 
       const mark = graded.pass ? "PASS" : "FAIL";
-      const failed = graded.checks.filter((c) => !c.pass).map((c) => c.name + (c.detail ? ` (${c.detail})` : ""));
+      const failed = graded.checks
+        .filter((c) => !c.pass)
+        .map((c) => c.name + (c.detail ? ` (${c.detail})` : ""));
       console.log(
         `  round ${round} ${q.key} ${mark} ${graded.seconds}s tools=[${graded.tools.join(",")}]` +
           (failed.length ? `  failed: ${failed.join("; ")}` : "")
@@ -222,7 +246,9 @@ async function runRound(round, runId) {
 
 // ── Main ───────────────────────────────────────────────────────────────
 const runId = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15);
-console.log(`RackReady repeatability eval: ${ROUNDS} round(s) against ${BASE} (run ${runId})`);
+console.log(
+  `RackReady repeatability eval: ${ROUNDS} round(s) against ${BASE} (run ${runId})`
+);
 
 const all = [];
 for (let r = 1; r <= ROUNDS; r++) {
@@ -234,7 +260,14 @@ for (let r = 1; r <= ROUNDS; r++) {
       process.exit(2);
     }
     console.log(`  round ${r} aborted: ${e.message}`);
-    all.push({ round: r, question: "round", pass: false, checks: [{ name: "round completed", pass: false, detail: e.message }], tools: [], answer: "" });
+    all.push({
+      round: r,
+      question: "round",
+      pass: false,
+      checks: [{ name: "round completed", pass: false, detail: e.message }],
+      tools: [],
+      answer: ""
+    });
   }
 }
 
@@ -242,17 +275,31 @@ for (let r = 1; r <= ROUNDS; r++) {
 const byQuestion = QUESTIONS.map((q) => {
   const rows = all.filter((x) => x.question === q.key);
   const passed = rows.filter((x) => x.pass).length;
-  const secs = rows.map((x) => x.seconds).filter((s) => typeof s === "number").sort((a, b) => a - b);
+  const secs = rows
+    .map((x) => x.seconds)
+    .filter((s) => typeof s === "number")
+    .sort((a, b) => a - b);
   const median = secs.length ? secs[Math.floor(secs.length / 2)] : null;
   const failures = {};
   for (const row of rows)
-    for (const c of row.checks.filter((c) => !c.pass)) failures[c.name] = (failures[c.name] ?? 0) + 1;
+    for (const c of row.checks.filter((c) => !c.pass))
+      failures[c.name] = (failures[c.name] ?? 0) + 1;
   const extraCalls = rows.reduce((s, x) => s + (x.extraToolCalls ?? 0), 0);
-  return { key: q.key, text: q.text, passed, total: rows.length, median, failures, extraCalls };
+  return {
+    key: q.key,
+    text: q.text,
+    passed,
+    total: rows.length,
+    median,
+    failures,
+    extraCalls
+  };
 });
 const overall = all.filter((x) => x.question !== "round");
-const roundsAllPass = [...new Set(all.map((x) => x.round))].filter((r) =>
-  all.filter((x) => x.round === r).length === QUESTIONS.length && all.filter((x) => x.round === r).every((x) => x.pass)
+const roundsAllPass = [...new Set(all.map((x) => x.round))].filter(
+  (r) =>
+    all.filter((x) => x.round === r).length === QUESTIONS.length &&
+    all.filter((x) => x.round === r).every((x) => x.pass)
 ).length;
 
 const lines = [
@@ -268,7 +315,9 @@ const lines = [
   ...byQuestion.map(
     (b) =>
       `| ${b.key}: ${b.text} | ${b.passed}/${b.total} | ${b.median ?? "n/a"} | ${b.extraCalls} | ${
-        Object.entries(b.failures).map(([k, v]) => `${k} (${v})`).join(", ") || "none"
+        Object.entries(b.failures)
+          .map(([k, v]) => `${k} (${v})`)
+          .join(", ") || "none"
       } |`
   ),
   "",
@@ -281,7 +330,10 @@ const lines = [
         .flatMap((x) => [
           `**Round ${x.round}, ${x.question}** (tools: ${x.tools.join(", ") || "none"})`,
           "",
-          `Failed: ${x.checks.filter((c) => !c.pass).map((c) => c.name + (c.detail ? ` (${c.detail})` : "")).join("; ")}`,
+          `Failed: ${x.checks
+            .filter((c) => !c.pass)
+            .map((c) => c.name + (c.detail ? ` (${c.detail})` : ""))
+            .join("; ")}`,
           "",
           "> " + (x.answer || "(no answer)").replace(/\n/g, "\n> "),
           ""
@@ -289,7 +341,10 @@ const lines = [
 ];
 
 mkdirSync("evals/results", { recursive: true });
-writeFileSync(`evals/results/${runId}.json`, JSON.stringify({ runId, base: BASE, rounds: ROUNDS, results: all }, null, 2));
+writeFileSync(
+  `evals/results/${runId}.json`,
+  JSON.stringify({ runId, base: BASE, rounds: ROUNDS, results: all }, null, 2)
+);
 writeFileSync(`evals/results/${runId}.md`, lines.join("\n") + "\n");
 
 console.log("\n" + lines.slice(0, 13 + QUESTIONS.length).join("\n"));
