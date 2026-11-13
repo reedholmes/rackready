@@ -1,0 +1,282 @@
+{
+  "runId": "20261113T170026",
+  "base": "https://rackready.reedholmes9.workers.dev",
+  "rounds": 1,
+  "results": [
+    {
+      "round": 1,
+      "question": "Q1",
+      "pass": true,
+      "checks": [
+        {
+          "name": "answered",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "no error cards",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "numbers come from tools",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "no false save claim",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "called checkMaterialReadiness",
+          "pass": true,
+          "detail": "checkMaterialReadiness"
+        },
+        {
+          "name": "names B-06",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "short 4",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "recovers week 5",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "no save requested",
+          "pass": true,
+          "detail": ""
+        }
+      ],
+      "tools": [
+        "checkMaterialReadiness"
+      ],
+      "extraToolCalls": 0,
+      "answer": "B-06 (Texas, week 3, priority 2, 2 compute rack(s) for US-Central) is short 4 x Top-of-rack switch (48-port) (SW-TOR-48); supply recovers in week 5, 2 week(s) late.",
+      "seconds": 3
+    },
+    {
+      "round": 1,
+      "question": "Q2",
+      "pass": true,
+      "checks": [
+        {
+          "name": "answered",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "no error cards",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "numbers come from tools",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "no false save claim",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "called checkMaterialReadiness",
+          "pass": true,
+          "detail": "checkMaterialReadiness"
+        },
+        {
+          "name": "names B-06",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "short 4",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "recovers week 5",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "no save requested",
+          "pass": true,
+          "detail": ""
+        }
+      ],
+      "tools": [
+        "checkMaterialReadiness"
+      ],
+      "extraToolCalls": 0,
+      "answer": "The component that is short for the week 3 builds is Top-of-rack switch (48-port) (SW-TOR-48). The build B-06 (Texas, week 3, priority 2, 2 compute rack(s) for US-Central) is short 4 units of this component. The supply recovers in week 5, which is 2 weeks late.",
+      "seconds": 4.1
+    },
+    {
+      "round": 1,
+      "question": "Q3",
+      "pass": true,
+      "checks": [
+        {
+          "name": "answered",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "no error cards",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "numbers come from tools",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "no false save claim",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "called proposeAllocation",
+          "pass": true,
+          "detail": "proposeAllocation"
+        },
+        {
+          "name": "option: priority",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "option: transfer from Malaysia",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "option: expedite PO-102",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "asks the user to choose",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "no save requested",
+          "pass": true,
+          "detail": ""
+        }
+      ],
+      "tools": [
+        "proposeAllocation"
+      ],
+      "extraToolCalls": 0,
+      "answer": "You have three options to address the switch shortage:\n\n1. **Serve builds by priority**: Keep the current plan, where higher-priority builds get the SW-TOR-48 supply first, and the rest wait for inbound supply. This will result in B-05 being built on time (week 3), B-06 being built 2 weeks late (week 5), and B-09 being built on time (week 5). The tradeoff is that lower-priority builds will slip until supply lands.\n2. **Transfer stock from Malaysia**: Ship 4 x SW-TOR-48 from Malaysia to Texas, arriving in week 2. Malaysia has 6 more SW-TOR-48 than its own 8-week plan needs. This will result in B-05, B-06, and B-09 being built on time (weeks 3, 3, and 5, respectively). The tradeoff is the freight cost and handling, and Malaysia's spare stock will drop from 6 to 2.\n3. **Expedite PO-102 from Vela Networks**: Ask Vela Networks to pull PO-102 (8 x SW-TOR-48) in from week 5 to week 3. This will result in B-05, B-06, and B-09 being built on time (weeks 3, 3, and 5, respectively). The tradeoff is that expedite fees are likely, and it's not guaranteed to land on time.\n\nWhich option do you choose?",
+      "seconds": 11.9
+    },
+    {
+      "round": 1,
+      "question": "Q4",
+      "pass": true,
+      "checks": [
+        {
+          "name": "answered",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "no error cards",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "numbers come from tools",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "no false save claim",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "approval card shown",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "saved after Approve",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "one decision in the log",
+          "pass": true,
+          "detail": "log has 1"
+        }
+      ],
+      "tools": [
+        "logDecision"
+      ],
+      "extraToolCalls": 0,
+      "answer": "Decision logged.",
+      "seconds": 3.7
+    },
+    {
+      "round": 1,
+      "question": "Q5",
+      "pass": true,
+      "checks": [
+        {
+          "name": "answered",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "no error cards",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "numbers come from tools",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "no false save claim",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "called listDecisions",
+          "pass": true,
+          "detail": "listDecisions"
+        },
+        {
+          "name": "recalls priority 1 decision",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "no save requested",
+          "pass": true,
+          "detail": ""
+        }
+      ],
+      "tools": [
+        "listDecisions"
+      ],
+      "extraToolCalls": 0,
+      "answer": "We decided to serve priority 1 builds first for the switch shortage.",
+      "seconds": 2.1
+    }
+  ]
+}
