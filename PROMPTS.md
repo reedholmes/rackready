@@ -260,3 +260,24 @@ Retry now and add a line to the readme.
 ```
 Yes, redeploy
 ```
+
+---
+
+## Prompt 27 (2026-11-13 14:00 ET)
+
+```
+push it to GitHub
+```
+
+Answers given in multiple-choice dialogs during this step:
+
+- GitHub account: "Switch to reedholmes"
+- Repo visibility: "Public (Recommended)"
+
+---
+
+## Prompt 28 (2026-11-13 14:03 ET)
+
+```
+I changed my username to reedholmes, same account
+```

@@ -2,6 +2,8 @@
 
 **Live demo:** https://rackready.reedholmes9.workers.dev
 
+**Code:** https://github.com/reedholmes/rackready
+
 RackReady is a chat agent for a supply chain program manager who owns data center rack integration. Ask it plain-English questions such as "Which rack builds are at risk in the next six weeks?" and it checks material readiness against the build plan, explains shortages, proposes allocation options, and keeps a log of the decisions you approve. Once a week it runs a shortage review on its own and leads the chat with the result.
 
 It was built as a demo for a job application at Cloudflare (Supply Chain Program Manager, Rack Integration). **All data is mock data.**
