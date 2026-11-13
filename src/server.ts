@@ -306,6 +306,11 @@ export class ChatAgent extends AIChatAgent<Env> {
         const used = new Set(
           steps.flatMap((step) => step.toolCalls.map((call) => call.toolName))
         );
+        // Once readiness has run, the build plan adds nothing: the readiness
+        // result already lists every build. In the repeatability eval, an
+        // extra getBuildPlan call after readiness preceded Llama replying
+        // "I do not have data" (2 of 10 rounds on the first demo question).
+        if (used.has("checkMaterialReadiness")) used.add("getBuildPlan");
         const remaining = (Object.keys(tools) as (keyof typeof tools)[]).filter(
           (name) =>
             !used.has(name) && (name !== "logDecision" || askedToLog)

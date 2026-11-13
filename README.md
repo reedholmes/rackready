@@ -122,17 +122,22 @@ Note: in local development the weekly cron schedule followed the computer's time
 - **No false save claim:** the reply may say "saved" only if `logDecision` actually saved.
 - **Right tool, no Error cards, and the key facts** (B-06, short 4, recovers week 5; all three options; the approval card; recalling the decision).
 
-Latest run (local, 2026-11-12, 10 rounds): **47 of 50 answers passed; 7 of 10 rounds passed all five questions.**
-
-| Question | Pass rate | Median seconds |
+| Question | First run (2026-11-12, 10 rounds) | After the Q1 fix (2026-11-13, 5 rounds) |
 |---|---|---|
-| Q1 At risk in six weeks? | 8/10 | 5.8 |
-| Q2 Week 3 shortage and recovery? | 9/10 | 3.7 |
-| Q3 Options? | 10/10 | 11.7 |
-| Q4 Log the decision (with Approve) | 10/10 | 2.4 |
-| Q5 What did we decide? | 10/10 | 1.8 |
+| Q1 At risk in six weeks? | 8/10 | 5/5 |
+| Q2 Week 3 shortage and recovery? | 9/10 | 5/5 |
+| Q3 Options? | 10/10 | 4/5 |
+| Q4 Log the decision (with Approve) | 10/10 | 5/5 |
+| Q5 What did we decide? | 10/10 | 5/5 |
+| **All answers** | **47/50** | **24/25** |
 
-No answer contained an untraceable number, a false save claim, or an Error card. The three failures were real: twice on Q1, Llama received the correct readiness result, made an extra `getBuildPlan` call, and then replied that it had no data; once on Q2 it gave the switch and recovery week but left out B-06 and the quantity. Q1 also made 14 extra tool calls across the 10 rounds. Full reports are in `evals/results/`.
+No answer in either run contained an untraceable number, a false save claim, or an Error card.
+
+**First run.** The three failures were real. Twice on Q1, Llama received the correct readiness result, made an extra `getBuildPlan` call, and then replied that it had no data. Once on Q2 it gave the switch and recovery week but left out B-06 and the quantity.
+
+**The fix.** Once the readiness check has run for a question, `getBuildPlan` is no longer offered to the model, since the readiness result already lists every build. Q1 then passed 6 of 6 (the 5-round run plus a 1-round check).
+
+**Still open.** In one round, Q3 listed all three options correctly but did not ask the user to pick one. Llama also sometimes called `proposeAllocation` after the readiness check on Q1 or Q2 (4 times in 25 answers); those answers still passed. Five rounds is a small sample, so treat the second run as "no sign of the Q1 failure," not proof it is gone. Full reports are in `evals/results/`.
 
 **Cost:** the eval calls Workers AI about 60 times per 10 rounds. On the free plan (10,000 neurons per day), a day of building and testing plus one 10-round run used up the daily allowance, after which every request fails, including the deployed demo. The runner detects this (three errors in a row before the model answers) and stops without writing a report.
 
@@ -157,6 +162,7 @@ Starting point: Cloudflare's [agents-starter](https://github.com/cloudflare/agen
 - One shared agent for all visitors (by design for the demo; multiple users are out of scope).
 - The header still says "Agent Starter", and the starter's image attachment button remains; Llama 3.3 cannot read images.
 - Llama 3.3 can take 20 to 30 seconds to answer, and the chat ignores input while a reply is streaming.
+- The live demo and the evals share the Workers AI free allowance (10,000 neurons per day). When it runs out, every reply fails until it resets, so after the demo link was shared I kept eval runs to 5 rounds. The reset was not instant either: on 2026-11-13 the dashboard showed the counter back at zero just after 00:00 UTC, but calls were still refused at 02:00 UTC, and they worked by 14:30 UTC.
 - See the limits at the end of Model Notes.
 
 ## Model Notes
